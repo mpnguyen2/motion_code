@@ -10,11 +10,12 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${file}",
+                "${fileDirname}\\**.cpp",
                 "-o",
                 "${fileDirname}\\${fileBasenameNoExtension}.exe",
                 "-I",
-                "C:/Users/nguyn/Documents/libraries/"
+                "C:/Users/nguyn/Documents/libraries/",
+                "${fileDirname}\\**.hpp"
             ],
             "options": {
                 "cwd": "${fileDirname}"

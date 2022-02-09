@@ -10,8 +10,6 @@
 // tmp
 using namespace std;
 
-const double kPi = Sophus::Constants<double>::pi();
-
 void Rigid::feedData(vector<vector<double>>& se3Pos, vector<vector<double>>& se3Ang, vector<vector<double>>& so3Ang){
     this->num_se3 = int(se3Pos.size());
     this->num_so3 = int(so3Ang.size());
@@ -44,13 +42,13 @@ void Rigid::print_obj(ofstream& output){
     int num_se3 = this->get_num_se3(), num_so3 = this->get_num_so3();
     for(int i = 0; i < num_se3; i++)
         output << se3_elems[i].translation()[0] << " " << se3_elems[i].translation()[1] << " " << se3_elems[i].translation()[2] << " ";
-    cout << endl;
+    output << endl;
     for(int i = 0; i < num_se3; i++)
         output << se3_elems[i].angleX() << " " << se3_elems[i].angleY() << " " << se3_elems[i].angleZ() << " ";
-    cout << endl;
+    output << endl;
     for(int i = 0; i < num_so3; i++)
         output << so3_elems[i].angleX() << " " << so3_elems[i].angleY() << " " << so3_elems[i].angleZ() << " ";
-    cout << endl;
+    output << endl;
 
 }
 
@@ -58,7 +56,7 @@ void Rigid::print_obj(ofstream& output){
 vector<double> interpolate1d(double start, double end, int num_pts){
     vector<double> results(num_pts);
     for(int i = 0; i < num_pts; i++)
-        results[i] = start + i*(end-start)/(num_pts-1);
+        results[i] = start + (i*(end-start))/num_pts;
     return results;
 }
 vector<Rigid> interpolate_pose(vector<vector<double>>& se3Pos_start, vector<vector<double>>& se3Pos_end, vector<vector<double>>& se3Ang_start, 
@@ -102,6 +100,9 @@ void Trajectory::feedData(vector<vector<vector<double>>>& se3Pos, vector<vector<
         times.insert(times.end(), next_times.begin(), next_times.end());
         num_pts += numPtsBtw[i];
     }
+    int last_ind = ts.size()-1; num_pts++;
+    times.push_back(ts[last_ind]);
+    pos.push_back(Rigid(se3Pos[last_ind], se3Ang[last_ind], so3Ang[last_ind]));
     // Compute each pose of rigid object's motion/trajectory. Each SE3/SO3 component is calculated separately
     vector<vector<Sophus::SE3d>> se3_elems_on_traj(num_pts, vector<Sophus::SE3d>(num_se3));
     vector<vector<Sophus::SO3d>> so3_elems_on_traj(num_pts, vector<Sophus::SO3d>(num_so3));
@@ -118,30 +119,55 @@ void Trajectory::feedData(vector<vector<vector<double>>>& se3Pos, vector<vector<
     // Calculate (interpolative) function in time that represents the motion/trajectory over separate so3/se3 components
     vector<function<Sophus::SE3d(double)>> se3_traj_fct(num_se3);
     vector<function<Sophus::SO3d(double)>> so3_traj_fct(num_so3);
+    int num_times = times.size();
+    int ind;
     for(int i = 0; i < num_se3; i++){
+        ind = i;
         se3_traj_fct[i] = [&](double t)->Sophus::SE3d{
-            int time_ind = lower_bound(times.begin(), times.end(), t)-times.begin();
+            if (t <= times[0])
+                return se3_elems_on_traj[0][ind];
+            else if (t >= times[num_pts-1])
+                return se3_elems_on_traj[num_pts-1][ind];
+
+            int time_ind = upper_bound(times.begin(), times.end(), t)-times.begin()-1;
             double time_interpolate = double(t-times[time_ind])/(times[time_ind+1]-times[time_ind]);
-            return interpolate(se3_elems_on_traj[time_ind][i], se3_elems_on_traj[time_ind+1][i], time_interpolate);
+            Sophus::SE3d tmp = interpolate(se3_elems_on_traj[time_ind][ind], se3_elems_on_traj[time_ind+1][ind], time_interpolate);
+            return tmp;
         };
     }
     for(int i = 0; i < num_so3; i++){
+        ind = i;
         so3_traj_fct[i] = [&](double t)->Sophus::SO3d{
-            int time_ind = lower_bound(times.begin(), times.end(), t)-times.begin();
+            if (t <= times[0])
+                return so3_elems_on_traj[0][ind];
+            else if (t >= times[num_pts-1])
+                return so3_elems_on_traj[num_pts-1][ind];
+
+            int time_ind = upper_bound(times.begin(), times.end(), t)-times.begin()-1;
             double time_interpolate = double(t-times[time_ind])/(times[time_ind+1]-times[time_ind]);
-            return interpolate(so3_elems_on_traj[time_ind][i], so3_elems_on_traj[time_ind+1][i], time_interpolate);
+            return interpolate(so3_elems_on_traj[time_ind][ind], so3_elems_on_traj[time_ind+1][ind], time_interpolate);
         };
     }
     // Numerically calculate velocities at each time instance over each direct (se3 or so3) component
     se3_velocities = vector<vector<Eigen::Vector3d>>(num_pts, vector<Eigen::Vector3d>(num_se3));
     so3_velocities = vector<vector<Eigen::Vector3d>>(num_pts, vector<Eigen::Vector3d>(num_so3));
     double t = 0;
+    const double eps = 1e-6;
+    const double finite_diff_eps = 3e-3;
     for(int i = 0; i < num_pts; i++){
         t = times[i];
-        for(int j = 0; j < num_se3; j++)
-            se3_velocities[i][j] = Sophus::experimental::finiteDifferenceRotationalVelocity(se3_traj_fct[j], t);
-        for(int j = 0; j < num_so3; j++)
-            so3_velocities[i][j] = Sophus::experimental::finiteDifferenceRotationalVelocity(so3_traj_fct[j], t);
+        for(int j = 0; j < num_se3; j++){
+            se3_velocities[i][j] = Sophus::experimental::finiteDifferenceRotationalVelocity(se3_traj_fct[j], t, finite_diff_eps);
+            for(int l = 0; l < 3; l++)
+                if(abs(se3_velocities[i][j][l]) < eps)
+                    se3_velocities[i][j][l] = 0;
+        }
+        for(int j = 0; j < num_so3; j++){
+            so3_velocities[i][j] = Sophus::experimental::finiteDifferenceRotationalVelocity(so3_traj_fct[j], t, finite_diff_eps);
+            for(int l = 0; l < 3; l++)
+                if(abs(so3_velocities[i][j][l]) < eps)
+                    so3_velocities[i][j][l] = 0;
+        }
     }
 }
 
@@ -155,9 +181,11 @@ void Trajectory::output_motion(ofstream& output){
         for(int j = 0; j < num_se3; j++){
             output << se3_velocities[i][j][0] << " " << se3_velocities[i][j][1] << " " << se3_velocities[i][j][2] << " ";
         }
+        output << endl;
         for(int j = 0; j < num_so3; j++){
             output << so3_velocities[i][j][0] << " " << so3_velocities[i][j][1] << " " << so3_velocities[i][j][2] << " ";
         }
+        output << endl;
     }
 }
 
@@ -182,7 +210,9 @@ vector<Trajectory> read_keyframes(string input_file){
     int num_pts = 0;
     for(int k = 0; k < num_traj; k++){
         input >> num_pts;
-        vector<vector<vector<double>>> se3Pos(num_se3), se3Ang(num_se3), so3Ang(num_so3);
+        vector<vector<vector<double>>> se3Pos(num_pts, vector<vector<double>>(num_se3, vector<double>(3)));
+        vector<vector<vector<double>>> se3Ang(num_pts, vector<vector<double>>(num_se3, vector<double>(3)));
+        vector<vector<vector<double>>> so3Ang(num_pts, vector<vector<double>>(num_so3, vector<double>(3)));
         vector<double> ts(num_pts);
         vector<int> numPtsBtw(num_pts-1);
         for(int i = 0; i < num_pts; i++){
@@ -213,7 +243,6 @@ void output_trajectories(vector<Trajectory>& trajectories, string output_file){
     output << num_traj << endl;
     for(int k = 0; k < num_traj; k++)
         trajectories[k].output_motion(output);
-    cout << endl;
     output.close();
 }
 

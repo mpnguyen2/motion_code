@@ -26,6 +26,9 @@ class Rigid{
         vector<Sophus::SO3d> so3_elems;
 
     public:
+        Rigid(){
+
+        }
         Rigid(vector<vector<double>>& se3Pos, vector<vector<double>>& se3Ang, vector<vector<double>>& so3Ang){
             this->feedData(se3Pos, se3Ang, so3Ang);
         }
@@ -64,6 +67,8 @@ class Trajectory{
         vector<vector<Eigen::Vector3d>> so3_velocities;
 
     public:
+        Trajectory(){
+        }
         Trajectory(int num_se3, int num_so3){
             num_pts = 0;
             this->num_se3 = num_se3;
@@ -86,8 +91,8 @@ class Trajectory{
         void output_motion(ofstream& output);
 };
 
-vector<Trajectory> read_trajectories(string input_file);
+vector<Trajectory> read_keyframes(string input_file);
 
-void calculate_motion(vector<Trajectory>& trajectories, string output_file);
+void output_trajectories(vector<Trajectory>& trajectories, string output_file);
 
 #endif

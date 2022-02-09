@@ -1,1 +1,0 @@
-interpolated_trajectory()
