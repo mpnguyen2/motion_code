@@ -1,9 +1,64 @@
+import numpy as np
 from matplotlib import pyplot as plt
 import torch
 import gpytorch
 
-def read_trajectory():
-    pass
+# Convert next line (from text data with handle f) data to a list of appropriate type
+def read_array(f, type):
+    next_line = f.readline().split()
+    return_arr = []
+    if type == 'int':
+        for d in next_line:
+            return_arr.append(int(d))
+    if type == 'double':
+        for d in next_line:
+            return_arr.append(float(d))
+    return np.array(return_arr)
+
+def read_trajectory(input_file):
+    """ Structure of input file:
+        First line: Number of trajectories
+        Next we have paragraphs where each corresponds to a trajectory
+            First line: num_pts num_se3 num_so3
+            Each of the next 3*num_pts line include:
+                First: num_se3 tuples of 3 double numbers for each SE3 component position
+                Second: num_se3 tuples of 3 double numbers for each SE3 component angle
+                Third: num_so3 tuples of 3 double numbers for each SO3 component angle
+            Each of the next 2*num_pts line include:
+                First: num_se3 tuples of 3 double numbers for each SE3 component velocity
+                First: num_so3 tuples of 3 double numbers for each SO3 component velocity
+    """
+    f = open(input_file, "r")
+    trajectories = []
+    num_traj = int(f.readline())
+    for _ in range(num_traj):
+        # Get number of pts on trajectory and configuration of the rigid obj (num_se3, num_so3)
+        config_data = read_array(f, type='int')
+        num_pts, num_se3, num_so3 = config_data[0], config_data[1], config_data[2]
+        # Now read in the pose of obj in each of the num_pts
+        # The pose in encoded in a (num_se3*3 + num_se3*3 + num_so3*3)-dim vector
+        X = np.zeros((num_pts, num_se3*6 + num_so3*3), dtype=float)
+        for i in range(num_pts):
+            # Read SE3 position data
+            X[i, :num_se3*3] = read_array(f, type='double')
+            # Read SE3 angular data
+            X[i, num_se3*3:num_se3*6] = read_array(f, type='double')
+            # Read SO3 angular data
+            X[i, num_se3*6:] = read_array(f, type='double')
+        # Now read velocity (motion) along this trajectory traveled by the rigid obj
+        y = np.zeros((num_pts, num_se3*3+num_so3*3))
+        for i in range(num_pts):
+            # Read SE3 velocity data
+            y[i, :num_se3*3] = read_array(f, type='double')
+        for i in range(num_pts):
+            # Read SO3 velocity data
+            y[i,num_se3*3:] = read_array(f, type='double')
+        # Add new pair (X, y) to trajectories list
+        trajectories.append((X, y))
+    # Close file 
+    f.close()
+
+    return trajectories
 
 def plot_gp(x_test, x_train, y_train, num_tasks, model, likelihood, save_file='test_gp.png'):
     model.eval()
@@ -31,3 +86,9 @@ def plot_gp(x_test, x_train, y_train, num_tasks, model, likelihood, save_file='t
 
     fig.tight_layout()
     plt.savefig(save_file)
+
+if __name__ == '__main__':
+    trajectories = read_trajectory('motions.txt')
+    for traj in trajectories:
+        X, y = traj
+        print(X.shape, y.shape)
