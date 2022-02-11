@@ -11,6 +11,7 @@ int main() {
   int num_se3 = 2, num_so3 = 3;
   vector<Trajectory> trajectories =  read_keyframes(input_file);
   output_trajectories(trajectories, output_file);
+  cout << "Done processing input keyframes and output calculated motion." << endl;
 
   return 0;
 }

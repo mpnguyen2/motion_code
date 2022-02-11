@@ -1,15 +1,9 @@
 import tqdm
-import math
-from math import floor
-import numpy as np
-
 import torch
-from torch.utils.data import TensorDataset, DataLoader
 import gpytorch
 
 def train_gp_step(model, mll, optimizer, x_train, y_train, num_epochs=10):
-    print('Start training Gaussian process...')
-    epochs_iter = tqdm.tqdm(range(num_epochs), desc="Epoch")
+    epochs_iter = tqdm.tqdm(range(num_epochs), desc="Epoch", leave=False)
     for i in epochs_iter:
         optimizer.zero_grad()
         output = model(x_train)
@@ -17,7 +11,6 @@ def train_gp_step(model, mll, optimizer, x_train, y_train, num_epochs=10):
         epochs_iter.set_postfix(loss=loss.item())
         loss.backward()
         optimizer.step()
-    print('Training complete.\n')
 
 def predict_gp(model, likelihood, x):
     if torch.cuda.is_available():

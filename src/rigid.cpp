@@ -174,6 +174,9 @@ void Trajectory::feedData(vector<vector<vector<double>>>& se3Pos, vector<vector<
 // Output (interpolated) position and velocity of a single trajectory
 void Trajectory::output_motion(ofstream& output){
     output << num_pts << " " << num_se3 << " " << num_so3 << endl;
+    for(int i = 0; i < num_pts; i++)
+        output << times[i] << " ";
+    output << endl;
     for(int i = 0; i < num_pts; i++){
         pos[i].print_obj(output);
     } 
@@ -245,6 +248,7 @@ void output_trajectories(vector<Trajectory>& trajectories, string output_file){
         First line: Number of trajectories
         Next we have paragraphs where each corresponds to a trajectory
             First line: num_pts num_se3 num_so3
+            Second line: time stamps (num_pts double numbers)
             Each of the next 3*num_pts line include:
                 First: num_se3 tuples of 3 double numbers for each SE3 component position
                 Second: num_se3 tuples of 3 double numbers for each SE3 component angle

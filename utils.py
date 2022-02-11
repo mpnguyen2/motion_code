@@ -20,6 +20,7 @@ def read_trajectory(input_file):
         First line: Number of trajectories
         Next we have paragraphs where each corresponds to a trajectory
             First line: num_pts num_se3 num_so3
+            Second line: time stamps (num_pts double numbers)
             Each of the next 3*num_pts line include:
                 First: num_se3 tuples of 3 double numbers for each SE3 component position
                 Second: num_se3 tuples of 3 double numbers for each SE3 component angle
@@ -35,6 +36,8 @@ def read_trajectory(input_file):
         # Get number of pts on trajectory and configuration of the rigid obj (num_se3, num_so3)
         config_data = read_array(f, type='int')
         num_pts, num_se3, num_so3 = config_data[0], config_data[1], config_data[2]
+        # Get timestamps
+        times = read_array(f, type='double')
         # Now read in the pose of obj in each of the num_pts
         # The pose in encoded in a (num_se3*3 + num_se3*3 + num_so3*3)-dim vector
         X = np.zeros((num_pts, num_se3*6 + num_so3*3), dtype=float)
@@ -54,7 +57,7 @@ def read_trajectory(input_file):
             # Read SO3 velocity data
             y[i,num_se3*3:] = read_array(f, type='double')
         # Add new pair (X, y) to trajectories list
-        trajectories.append((X, y))
+        trajectories.append((X, y, times))
     # Close file 
     f.close()
 

@@ -1,7 +1,7 @@
 # lie_cluster
 Currently we map each Lie group-valued trajectory to a latent time-series. Then given a set of trajectories, we cluster those trajectories by clustering the corresponding time-series
 
-** File structure: **
+**File structure:**
 * data: Hold trajectory/motion data. To be updated to have data from Blender
 * sparse_gp: all sparse gaussian process training with multi-valued fct
 * C++ code: currently for handling all Lie group/algebra

@@ -4,6 +4,7 @@ This file contains all clustering-related fct
 
 import numpy as np
 from scipy.cluster.hierarchy import single, fcluster
+from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
@@ -40,3 +41,16 @@ def cluster_dtw(time_series, threshold_dist, plot_file='plot_cluster.png'):
     colors = cm.rainbow(np.linspace(0, 1, np.max(labels)))
     plt.scatter(np.arange(0, len(labels)), np.zeros(len(labels)), c=colors[labels-1])
     plt.savefig(plot_file)
+
+# Perform cluster on latent vectors
+def cluster_vector(latent_vectors, num_cluster, plot_file='plot_cluster_vec.png'):
+    data = np.array(latent_vectors)
+    kmeans = KMeans(n_clusters=num_cluster, random_state=0).fit(data)
+    # Clustering labels
+    labels = kmeans.labels_
+    print('Labels: ', labels)
+    # Plot for visualization
+    colors = cm.rainbow(np.linspace(0, 1, np.max(labels)))
+    plt.scatter(data[:, 0], data[:, 1], c=colors[labels])
+    plt.savefig(plot_file)
+
