@@ -130,3 +130,9 @@ dmypy.json
 
 # Exe file
 *.exe
+
+# Data file
+data/
+
+# Out file
+out/
