@@ -1,1 +1,1 @@
-python preprocessing.py
+python preprocessing.py && python train.py

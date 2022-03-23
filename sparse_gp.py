@@ -69,7 +69,7 @@ def unpack_params(params, mode='simple_train', dims=[1, 1, 1]):
         z = params[d:]
         return jnp.array(theta1), jnp.array(z)
 
-def elbo_fn(X_list, y_list, indices, sigma_y, dims, mode='simple_train', trained_params=[]):
+def elbo_fn(X_list, y_list, indices, sigma, dims, mode='simple_train', trained_params=[]):
     # L is the number of motion
     # d is the dimension of motion code vector
     # m is the number of inducing points
@@ -79,18 +79,18 @@ def elbo_fn(X_list, y_list, indices, sigma_y, dims, mode='simple_train', trained
         # n is the number of training samples
         n = y.shape[0]
         L = jnp.linalg.cholesky(K_mm)
-        A = jsp.linalg.solve_triangular(L, K_mn, lower=True)/sigma_y
+        A = jsp.linalg.solve_triangular(L, K_mn, lower=True)/sigma
         AAT = A @ A.T
         B = jnp.eye(K_mn.shape[0]) + AAT
         LB = jnp.linalg.cholesky(B)
-        c = jsp.linalg.solve_triangular(LB, A.dot(y), lower=True)/sigma_y
+        c = jsp.linalg.solve_triangular(LB, A.dot(y), lower=True)/sigma
 
         lb = -n/2 * jnp.log(2*jnp.pi)
         lb -= jnp.sum(jnp.log(jnp.diag(LB)))
-        lb -= n/2 * jnp.log(sigma_y**2)
-        lb -= 0.5/sigma_y**2 * y.T.dot(y)
+        lb -= n/2 * jnp.log(sigma**2)
+        lb -= 0.5/sigma**2 * y.T.dot(y)
         lb += 0.5 * c.T.dot(c)
-        lb -= 0.5/sigma_y**2 * jnp.sum(gaussian_kernel_diag(n, theta1))
+        lb -= 0.5/sigma**2 * jnp.sum(gaussian_kernel_diag(n, theta1))
         lb += 0.5 * jnp.trace(AAT)
 
         return -lb[0, 0]
@@ -151,29 +151,41 @@ def elbo_fn(X_list, y_list, indices, sigma_y, dims, mode='simple_train', trained
 
 # Find optimal mu_m and A_m: approximate distribution params for f_m
 @jit
-def phi_opt(theta, X_m, X, y, sigma_y):
-  precision = 1.0/(sigma_y**2)
+def phi_opt(theta, X_m, X_list, y_list, sigma):
+    precision = 1.0/(sigma**2)
+    B = len(X_list)
+    # Get K_mm and its inverse
+    K_mm = gaussian_kernel(X_m, X_m, theta) + jitter(X_m.shape[0])
+    K_mm_inv = jnp.linalg.inv(K_mm)
+    # Get list of K_nm and K_mn
+    K_nm_list = []
+    K_mn_list = []
+    for j in range(B):
+        K_nm_list.append(gaussian_kernel(X_list[j], X_m, theta))
+        K_mn_list.append(K_nm_list[j].T)
+    # Get Sigma in mean and variance formulas
+    Lambda = K_mm
+    for j in range(B):
+        Lambda += precision/B * K_mn_list[j] @ K_nm_list[j]
+    Sigma = jnp.linalg.inv(Lambda)
+    factor = 1/B*precision*K_mm @ Sigma
+    # Calculate variance
+    A_m = K_mm @ Sigma @ K_mm
+    # Calculate mean
+    mu_m = (factor @ K_mn_list[0]).dot(y_list[0])
+    for j in range(1, B):
+        mu_m += (factor @ K_mn_list[j]).dot(y_list[j])
 
-  K_mm = gaussian_kernel(X_m, X_m, theta) + jitter(X_m.shape[0])
-  K_mm_inv = jnp.linalg.inv(K_mm)
-  K_nm = gaussian_kernel (X, X_m, theta)
-  K_mn = K_nm.T
-
-  Sigma = jnp.linalg.inv(K_mm + precision * K_mn @ K_nm)
-
-  mu_m = precision * (K_mm @ Sigma @ K_mn).dot(y)
-  A_m = K_mm @ Sigma @ K_mm
-
-  return mu_m, A_m, K_mm_inv
+    return mu_m, A_m, K_mm_inv
 
 # Prediction
 @jit
 def q(X_test, theta, X_m, mu_m, A_m, K_mm_inv):
-  K_ss = gaussian_kernel(X_test, X_test, theta)
-  K_sm = gaussian_kernel(X_test, X_m, theta)
-  K_ms = K_sm.T
+    K_ss = gaussian_kernel(X_test, X_test, theta)
+    K_sm = gaussian_kernel(X_test, X_m, theta)
+    K_ms = K_sm.T
 
-  f_q = (K_sm @ K_mm_inv).dot(mu_m)
-  f_q_cov = K_ss - K_sm @ K_mm_inv @ K_ms + K_sm @ K_mm_inv @ A_m @ K_mm_inv @ K_ms
+    f_q = (K_sm @ K_mm_inv).dot(mu_m)
+    f_q_cov = K_ss - K_sm @ K_mm_inv @ K_ms + K_sm @ K_mm_inv @ A_m @ K_mm_inv @ K_ms
 
-  return f_q, f_q_cov
+    return f_q, f_q_cov
