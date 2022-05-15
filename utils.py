@@ -1,7 +1,10 @@
-import os
+import os, pickle
 import numpy as np
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
+### Read timeseries and put them together if they are the same motion for model training ###
 def read_timeseries(file_name, mode='plain'):
     f = open(file_name, mode='r')
     # Each line is a frame contain a fixed number of features
@@ -78,3 +81,68 @@ def combine_timeseries(ts_list, time_step):
 def get_time_variables(Y):
     len_series = Y.shape[0]
     return np.linspace(0, 1, len_series).reshape(-1, 1)
+        
+### Load data from condensed files (npz and small txt and pickle) ###
+def load_data(prefix):
+    # Load look-up dictionaries and array of motion names
+    motion_to_index = pickle.load(open(prefix + '_motion_to_index.pickle', 'rb'))
+    index_to_motion = np.loadtxt(prefix+'_index_to_motion.txt', dtype=str, delimiter=' ')
+    motion_names = np.loadtxt(prefix+'_motion_names.txt', dtype=str, delimiter=' ')
+    # Load main timeseries data and divide them into different samples of timeseries
+    # Also record the appropriate indices correponding to their motion names for later training
+    data = np.load(prefix+'_data.npz')
+    X = data['X']; Y = data['Y']
+    num_observations = data['num_observations']
+    X_list = []; Y_list = []; indices = []
+    for i in range(len(num_observations)-1):
+        X_list.append(X[num_observations[i]:num_observations[i+1]])
+        Y_list.append(Y[num_observations[i]:num_observations[i+1]])
+        indices.append(motion_to_index[motion_names[i]])
+   
+    return index_to_motion, motion_names, X_list, Y_list, indices
+
+
+## Metric
+# pred and gt are both lists of str
+def precision(pred, gt):
+    return np.sum(np.array(pred)==np.array(gt))/len(pred)
+
+# Multi-class F-score: TBA
+def F_score(pred, gt, num_class):
+    pass
+
+## Visualization
+def plot_timeseries(index_to_motion, X_list, y_list, indices, colors, explore=True, X_ms=np.array([])):
+    num_series = len(y_list)
+    for i in range(num_series):
+        plt.plot(X_list[i], y_list[i], c=colors[indices[i]], lw=0.5)
+    plt.title('Time series')
+    patches = []
+    L = len(index_to_motion)
+    for k in range(L):
+        patches.append(mpatches.Patch(color=colors[k], label=index_to_motion[k]))
+    plt.legend(handles=patches)
+    if not explore:
+        for k in range(L):
+            plt.scatter(X_ms[k].reshape(-1), np.zeros(X_ms[k].shape[0]), color=colors[k])
+    if explore:
+        plt.savefig('out/plot.png')
+    else:
+        plt.savefig('out/inducing_pts.png')
+
+def plot_motion_types(index_to_motion, X_lists, y_lists, X_test, means, covars, colors):
+    L = len(X_lists)
+    for k in range(L):
+        num_series = len(X_lists[k])
+        for i in range(num_series):
+            plt.plot(X_lists[k][i], y_lists[k][i], c=colors[k], lw=0.5)
+        std = np.sqrt(np.diag(covars[k])).reshape(-1)
+        mean = means[k].reshape(-1)
+        X_test = X_test.reshape(-1)
+        plt.plot(X_test, mean, c=colors[(k+1)%len(X_lists)], lw=0.5)
+        plt.fill_between(X_test, mean+2*std, mean-2*std,
+            color=colors[(k+2)%len(X_lists)], alpha=0.1)
+        #plt.scatter(X_ms[k].reshape(-1), np.zeros(X_ms[k].shape[0]), color=colors[k])
+        plt.legend(handles=[mpatches.Patch(color=colors[k], label=index_to_motion[k])])
+        plt.savefig('out/multiple/' + index_to_motion[k] + '.png')
+        plt.clf()

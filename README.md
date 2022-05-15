@@ -1,10 +1,10 @@
 # lie_cluster
-Currently we map each Lie group-valued trajectory to a latent time-series. Then given a set of trajectories, we cluster those trajectories by clustering the corresponding time-series
+We focus on learning latent code for time-series created by rigid object's motion for detection and recognition tasks
 
 **File structure:**
-* data: Hold trajectory/motion data. To be updated to have data from Blender
-* sparse_gp: all sparse gaussian process training with multi-valued fct
-* C++ code: currently for handling all Lie group/algebra
-* cluster.py: should put all clustering-related functions here
-* latent_motion.py: infer latent time-series from original rigid-object trajectory
-* main.py: the main pipeline 
+* data: Hold trajectory/motion data. Currently, 2 folders are for artificial data and auslan (Australian sign language) data set
+* sparse_gp: all sparse gaussian process training functions
+* gpytorch_code: Old approach that optimize to find signature of each timeseries separately
+* C++ code: generate Lie group-valued timeseries
+* train.py: training model
+* main.py: the main run pipeline: preprocessing data and model training
