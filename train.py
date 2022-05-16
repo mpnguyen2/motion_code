@@ -30,7 +30,7 @@ def vector_to_scalar_Y(X_list, Y_list, use_weight=False, coord=12, weights=np.ar
             y_list.append(Y[:, coord:(coord+1)])
     return min_X, max_X, y_list
 
-def train(prefix, m, d, mode='code', sigma=0.01, use_weight=False, weights=np.array([]), colors=[]):
+def train(prefix, m, d, mode='code', sigma=0.1, use_weight=False, weights=np.array([]), colors=[]):
     # Load and process data
     index_to_motion, _, X_list, y_list, indices = load_data(prefix)
     min_X, max_X, y_list = vector_to_scalar_Y(X_list, y_list, coord=0, use_weight=use_weight, weights=weights)
@@ -138,9 +138,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.data_mode == 'artificial':
-        prefix = 'data/artificial/artificial'
+        prefix = 'data/artificial/'
     else:
-        prefix = 'data/auslan/processed/train'
+        prefix = 'data/auslan/processed/'
 
     m = args.num_inducing_pts; d = args.motion_code_degree
     max_predictions = 200
@@ -161,11 +161,11 @@ if __name__ == '__main__':
         print('\n--------------------------------------------')
         print('Number of inducing points: ', args.num_inducing_pts)
         print('Training...')
-        trained_params, index_to_motion = train(prefix=prefix, m=m, d=d, mode='simple', colors=color_list)
+        trained_params, index_to_motion = train(prefix=prefix+'train', m=m, d=d, mode='simple', colors=color_list)
         print('Done training. Take {:.3f} seconds'.format(time.time()-start_time))
         print('\n--------------------------------------------')
-        print('Testing on the same dataset...')
-        test(prefix=prefix, index_to_motion=index_to_motion, m=m, d=d, 
+        print('Testing...')
+        test(prefix=prefix+'test', index_to_motion=index_to_motion, m=m, d=d, 
             trained_params=trained_params, mode='simple', max_predictions=max_predictions)
 
     # Latent code mode

@@ -197,8 +197,8 @@ def simple_predict(X_test, y_test, thetas, X_ms, mu_ms, A_ms, K_mm_invs):
     for k in range(L):
         # Calculate likelihood conditioned on class k
         mean, covar = q(X_test, thetas[k], X_ms[k], mu_ms[k], A_ms[k], K_mm_invs[k])
-        ll = jnp.log(jnp.linalg.det(covar))*((y_test-mean).T)@jnp.linalg.inv(covar)@(y_test-mean)
-        #ll = ((y_test-mean).T)@(y_test-mean)
+        #ll = jnp.log(jnp.linalg.det(covar))*((y_test-mean).T)@jnp.linalg.inv(covar)@(y_test-mean)
+        ll = ((y_test-mean).T)@(y_test-mean)
         if ind == -1:
             ind = k; min_ll = ll[0][0]
         elif min_ll > ll[0][0]: 

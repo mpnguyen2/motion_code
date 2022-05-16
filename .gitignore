@@ -49,8 +49,10 @@ coverage.xml
 
 # Data files
 data/artificial/*
+!data/artificial/.gitkeep 
 data/auslan/*
 data/*.txt
 
 # Out file
 out/multiple/*
+!out/multiple/.gitkeep 
