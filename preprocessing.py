@@ -4,7 +4,7 @@ from utils import *
 import argparse
 
 def clear():
-    os.system( 'clear' )
+    os.system('clear')
 
 # Saving data: 
 # we need 3 files for motion to index dict, index to motion array, motion names array,
@@ -20,10 +20,10 @@ def save_data(prefix, index_to_motion, motion_to_index, motion_names, num_observ
     # Saving main timeseries data: big Y=f(X) and accumulated number of observations for these timeseries
     np.savez(prefix + '_data', X=X, Y=Y, num_observations=num_observations)    
 
-def process_data(dir_name, prefix, file_format='tsd', max_num_motions=10):
+def process_data(input_dir, output_dir, file_format='tsd', max_num_motions=10):
     '''
-    dir_name: Root directory to data files
-    prefix: Directory prefix to save converted data
+    input_dir: Root directory to data files
+    output_dir: Directory to save converted data
     file_format: file type for timeseries data
     max_num_motions: Maximum number of motions allowed
     time_step: rate of sampling. Default to 100 frames per second
@@ -31,7 +31,7 @@ def process_data(dir_name, prefix, file_format='tsd', max_num_motions=10):
     print('Loading data...')
     # Load data and get motion names for each timeseries, together with motion name to index & index to name look-up dictionary
     index_to_motion, motion_to_index, motion_names, Y, num_observations = \
-        get_motion_data_from_dir(dir_name=dir_name, file_format=file_format, max_num_motions=max_num_motions)
+        get_motion_data_from_dir(dir_name=input_dir, file_format=file_format, max_num_motions=max_num_motions)
     print('Loaded data. Preprocessing data...')
     # Create time X arrays: 2 big arrays for Y=f(X) time-series data
     X = np.array([])
@@ -54,7 +54,7 @@ def process_data(dir_name, prefix, file_format='tsd', max_num_motions=10):
     print('Number of features in timeseries: ', Y.shape[1])
     # Save files: use npz for arrays, txt for str arrays, and pickle for dictionaries
     print('\nSaving data files...')
-    save_data(prefix, index_to_motion, motion_to_index, motion_names, num_observations, X, Y)
+    save_data(output_dir, index_to_motion, motion_to_index, motion_names, num_observations, X, Y)
     print('Data files saved. Data processing done!')
 
 # Functions seed for generating synthetic data
@@ -130,19 +130,21 @@ if __name__ == '__main__':
         # Rate: 100 frames per second
         # time_step = 1e-2 
         # Number of maximum allowed motion
-        max_num_motions = 12
+        max_num_motions = 2
         # Process training data
         main_dir = 'data/auslan'
         print('Process training data...')
-        process_data(dir_name=main_dir+'/train', prefix=main_dir+'/processed/train', max_num_motions=max_num_motions)
+        process_data(input_dir=main_dir+'/train', output_dir=main_dir+'/processed/train', max_num_motions=max_num_motions)
         print('Done processing training data.\n')
         print('--------------------------------------------')
         # Process first test set
-        print('Process test 1 data...')   
-        process_data(dir_name=main_dir+'/test1', prefix=main_dir+'/processed/test1', max_num_motions=max_num_motions)
-        print('Done processing test 1 data.\n')
+        print('Process test data...')   
+        process_data(input_dir=main_dir+'/train', output_dir=main_dir+'/processed/test', max_num_motions=max_num_motions)
+        print('Done processing test data.\n')
         print('--------------------------------------------')
+        ''' Option second test set
         # Process second test set
         print('Process test 2 data...')
         process_data(dir_name=main_dir+'/test2', prefix=main_dir+'/processed/test2', max_num_motions=max_num_motions)
         print('Done processing test 2 data.')
+        '''

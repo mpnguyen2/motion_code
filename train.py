@@ -33,6 +33,9 @@ def vector_to_scalar_Y(X_list, Y_list, use_weight=False, coord=12, weights=np.ar
 def train(prefix, m, d, mode='code', sigma=0.1, use_weight=False, weights=np.array([]), colors=[]):
     # Load and process data
     index_to_motion, _, X_list, y_list, indices = load_data(prefix)
+    print(len(X_list), X_list[0].shape)
+    print(len(y_list), y_list[0].shape)
+
     min_X, max_X, y_list = vector_to_scalar_Y(X_list, y_list, coord=0, use_weight=use_weight, weights=weights)
     L = index_to_motion.shape[0]
     dims = [m, L, d]
@@ -70,7 +73,7 @@ def train(prefix, m, d, mode='code', sigma=0.1, use_weight=False, weights=np.arr
             thetas.append(theta); X_ms.append(X_m)
             # After getting inducing point X_m, get its optimal q-distribution with mean mu_m and covariance A_m
             # And also inverse of K_mm for easier calculation later
-            mu_m, A_m, K_mm_inv = phi_opt(theta, X_m, X_list, y_list, sigma) 
+            mu_m, A_m, K_mm_inv = phi_opt(theta, X_m, X_lists[k], y_lists[k], sigma) 
             mu_ms.append(mu_m); A_ms.append(A_m); K_mm_invs.append(K_mm_inv)
         # Choose simple equally space test data and produce predicted results to sanity check the training
         print('\nSimple sanity check (plot results saved in out/multiple folder)...')
@@ -112,8 +115,9 @@ def test(prefix, index_to_motion, m, d, trained_params, mode='code', max_predict
         pred = []; gt = []
         pbar = tqdm(zip(X_list, y_list), total=min(len(y_list), max_predictions), leave=False)
         for X_test, y_test in pbar:
+            partial_len = X_test.shape[0]//2
             # Get predict and ground truth motions
-            pred_index = simple_predict(X_test, y_test, thetas, X_ms, mu_ms, A_ms, K_mm_invs)
+            pred_index = simple_predict(X_test[:partial_len], y_test[:partial_len], thetas, X_ms, mu_ms, A_ms, K_mm_invs)
             pred_motion = index_to_motion[pred_index]
             gt_motion = motion_names[num_predicted]
             pbar.set_description(f'Predict: {pred_motion}; gt: {gt_motion}')

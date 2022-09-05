@@ -188,7 +188,7 @@ def q(X_test, theta, X_m, mu_m, A_m, K_mm_inv):
     f_q = (K_sm @ K_mm_inv).dot(mu_m)
     f_q_cov = K_ss - K_sm @ K_mm_inv @ K_ms + K_sm @ K_mm_inv @ A_m @ K_mm_inv @ K_ms
 
-    return f_q, f_q_cov
+    return f_q , f_q_cov
 
 # Simple predict using argmin of negative log-likelihood over all possible classes
 def simple_predict(X_test, y_test, thetas, X_ms, mu_ms, A_ms, K_mm_invs):
@@ -197,7 +197,7 @@ def simple_predict(X_test, y_test, thetas, X_ms, mu_ms, A_ms, K_mm_invs):
     for k in range(L):
         # Calculate likelihood conditioned on class k
         mean, covar = q(X_test, thetas[k], X_ms[k], mu_ms[k], A_ms[k], K_mm_invs[k])
-        #ll = jnp.log(jnp.linalg.det(covar))*((y_test-mean).T)@jnp.linalg.inv(covar)@(y_test-mean)
+        #ll = jnp.log(jnp.linalg.det(covar)) + ((y_test-mean).T)@jnp.linalg.inv(covar)@(y_test-mean)
         ll = ((y_test-mean).T)@(y_test-mean)
         if ind == -1:
             ind = k; min_ll = ll[0][0]
@@ -205,3 +205,6 @@ def simple_predict(X_test, y_test, thetas, X_ms, mu_ms, A_ms, K_mm_invs):
             ind = k; min_ll = ll[0][0]
     
     return ind
+
+def predict(theta0, Z, Theta1, X_m):
+    pass
