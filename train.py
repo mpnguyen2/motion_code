@@ -11,134 +11,106 @@ import matplotlib.patches as mpatches
 from sparse_gp import *
 from utils import *
 
-# The training currently only support scalar-valued fct. 
-# Thus, need to convert vector-valued to scalar-valued fct
-def vector_to_scalar_Y(X_list, Y_list, use_weight=False, coord=12, weights=np.array([])):
-    max_X = 0; min_X = 1
-    for X in X_list:
-        max_X = max(max_X, np.max(X))
-        min_X = min(min_X, np.min(X))
-    y_list = []
-    if use_weight:
-        num_features = Y_list[0].shape[1]
-        if weights.shape[0] == 0:
-            weights = np.random.rand(num_features)
-        for Y in Y_list:
-            y_list.append(np.sum(Y*weights.reshape(1,-1), axis=1).reshape(-1, 1))
-    else:
-        for Y in Y_list:
-            y_list.append(Y[:, coord:(coord+1)])
-    return min_X, max_X, y_list
-
-def train(prefix, m, d, mode='code', sigma=0.1, use_weight=False, weights=np.array([]), colors=[]):
+def train(prefix, m=10, Q=8, latent_dim=3, sigma_y=0.1):
     # Load and process data
-    index_to_motion, _, X_list, y_list, indices = load_data(prefix)
-    print(len(X_list), X_list[0].shape)
-    print(len(y_list), y_list[0].shape)
+    index_to_motion, _, X_list, Y_list, indices = load_data(prefix)
+    #min_X, max_X = find_min_max_from_data_list(X_list)
+    num_motion = index_to_motion.shape[0]
+    num_comp = Y_list[0].shape[1]
+    dims = (num_motion, num_comp, m, latent_dim, Q)
 
-    min_X, max_X, y_list = vector_to_scalar_Y(X_list, y_list, coord=0, use_weight=use_weight, weights=weights)
-    L = index_to_motion.shape[0]
-    dims = [m, L, d]
-    # Optimization
-    if mode == 'simple':
-        # Divide data into L bins corresponding to each type of motion
-        X_lists = []; y_lists = []
-        for _ in range(L):
-            X_lists.append([]); y_lists.append([])
-        for i in range(len(y_list)):
-            X_lists[indices[i]].append(X_list[i])
-            y_lists[indices[i]].append(y_list[i])
-        # DEBUG
-        '''
-        for k in range(L):
-            X_lists[k] = X_lists[k][:1]
-            y_lists[k] = y_lists[k][:1]
-        '''
-        # END DEBUG
-        # For training, we optimize thetas, X_ms, mu_ms, A_ms, K_mm_invs
-        # Then we do a simple test on equally spaced X-data before passing optimized params to next stage
-        thetas = []; X_ms = []; mu_ms = []; A_ms = []; K_mm_invs = []
-        # Starting theta and X_m for all types of motion (with free domains)
-        theta_start = softplus_inv(np.array([1., 1.]))
-        X_m_start = sigmoid_inv(np.linspace(0.1, 0.9, m))
-        # Optimize theta and X_m for each type of motions by maximizing the upperbound of the ELBO (of likelihood)
-        for k in range(L):
-            res = minimize(fun=elbo_fn(X_lists[k], y_lists[k], indices, sigma, 
-                dims, mode='simple_train'),
-                x0 = pack_params([jnp.array(theta_start), jnp.array(X_m_start)]),
-                method='L-BFGS-B', jac=True)
-            print('Type of motion: ', index_to_motion[k], '; Successfully optimized: ', res.success)
-            theta, X_m = unpack_params(res.x, mode='simple_train', dims=dims)
-            X_m = sigmoid(X_m); theta = softplus(theta) # retransform domain
-            thetas.append(theta); X_ms.append(X_m)
-            # After getting inducing point X_m, get its optimal q-distribution with mean mu_m and covariance A_m
-            # And also inverse of K_mm for easier calculation later
-            mu_m, A_m, K_mm_inv = phi_opt(theta, X_m, X_lists[k], y_lists[k], sigma) 
-            mu_ms.append(mu_m); A_ms.append(A_m); K_mm_invs.append(K_mm_inv)
-        # Choose simple equally space test data and produce predicted results to sanity check the training
-        print('\nSimple sanity check (plot results saved in out/multiple folder)...')
-        X_test = np.linspace(-0.1, 1.1, 30).reshape(-1, 1); means = []; covars = []
-        for k in range(L):
-            mean, covar = q(X_test, thetas[k], X_ms[k], mu_ms[k], A_ms[k], K_mm_invs[k])
-            means.append(mean); covars.append(covar)
-        # Plot (each type of motion separately) training data and test prediction on X_test
-        plot_motion_types(index_to_motion, X_lists, y_lists, X_test, 
-                means=means, covars=covars, colors=colors)
-        print('Sanity check done.')
-        return (thetas, X_ms, mu_ms, A_ms, K_mm_invs), index_to_motion
+    # We optimize X_m, Z, and Kernel parameters including Sigma, Mu, W, Phi, Theta  
+    # np.tile(np.linspace(min_X, max_X, m), (1, latent_dim)).reshape  
+    X_m_start = np.zeros((m, latent_dim))
+    Z_start = np.zeros((num_motion, latent_dim))
+    Sigma_start = softplus_inv(np.ones((num_motion, num_comp, Q)))
+    Mu_start = np.zeros((num_motion, num_comp, Q))
+    W_start = softplus_inv(np.ones((num_motion, num_comp, Q)))
+    Phi_start = np.zeros((num_motion, num_comp, Q))
+    Theta_start = np.zeros((num_motion, num_comp, Q))
 
-    if mode == 'code':
-        # Optimize theta0, Z, Theta1, X_m
-        theta0_start = np.ones(d)
-        Theta1_start = np.ones((L, d))
-        X_m_start = np.tile(np.linspace(min_X, max_X, m), (1, d)).reshape(m, d)
-        Z_start = np.zeros((L, d))
-        res = minimize(fun=elbo_fn(X_list, y_list, sigma, dims, mode='code_train'),
-            x0 = pack_params([theta0_start, Z_start, Theta1_start, X_m_start]),
-            method='L-BFGS-B', jac=True)
-        theta0, Z, Theta1, X_m = unpack_params(res.x, mode='code_train', dims=dims)
-        return theta0, Z, Theta1, X_m
+    res = minimize(fun=elbo_fn(X_list, Y_list, indices, sigma_y, dims),
+        x0 = pack_params([X_m_start, Z_start, Sigma_start, Mu_start, W_start, Phi_start, Theta_start]),
+        method='L-BFGS-B', jac=True)
+    print('Inducing pts, motion codes, and kernel params successfully optimized: ', res.success)
+    X_m, Z, Sigma, Mu, W, Phi, Theta = unpack_params(res.x, dims=dims)
+    Sigma = softplus(Sigma)
+    W = softplus(W)
+
+    # Transform kernel parameter to "pair" form
+    Sigma_ij, Mu_ij, Alpha_ij, Theta_ij, Phi_ij = get_param_matrices_from_core_params(Sigma, Mu, W, Phi, Theta)
+
+    # We now optimize distribution params for each motion and store means in mu_ms, covariances in A_ms, and for convenient K_mm_invs
+    mu_ms = []; A_ms = []; K_mm_invs = []
+
+    # All timeseries of the same motion is put into a list, an element of X_motion_lists and Y_motion_lists
+    X_motion_lists = []; Y_motion_lists = []
+    for _ in range(num_motion):
+        X_motion_lists.append([]); Y_motion_lists.append([])
+    for i in range(len(Y_list)):
+        X_motion_lists[indices[i]].append(X_list[i])
+        Y_motion_lists[indices[i]].append(Y_list[i])
+
+    # For each motion, using trained kernel parameter in "pair" form to obtain optimal distribution params for each motion.
+    for k in range(num_motion):
+        kernel_params_ij = (Sigma_ij[k], Mu_ij[k], Alpha_ij[k], Phi_ij[k], Theta_ij[k])
+        mu_m, A_m, K_mm_inv = phi_opt(sigmoid(X_m @ Z[k]), X_motion_lists[k], Y_motion_lists[k], sigma_y, kernel_params_ij) 
+        mu_ms.append(mu_m); A_ms.append(A_m); K_mm_invs.append(K_mm_inv)
+
+    # Choose simple equally space test data and produce predicted results to sanity check the training
+    print('\nSimple sanity check (plot results saved in out/multiple folder)...')
+    X_test = np.linspace(-0.1, 1.1, 30).reshape(-1, 1); means = []; covars = []
+    for k in range(num_motion):
+        kernel_params_ij = (Sigma_ij[k], Mu_ij[k], Alpha_ij[k], Phi_ij[k], Theta_ij[k])
+        mean, covar = q(X_test, sigmoid(X_m @ Z[k]), kernel_params_ij, mu_ms[k], A_ms[k], K_mm_invs[k])
+        means.append(mean); covars.append(covar)
+    plot_motion_types(index_to_motion, X_motion_lists, Y_motion_lists, X_test, 
+            means=means, covars=covars)
+    print('Sanity check done.')
+
+    return (X_m, Z, Sigma, Mu, W, Phi, Theta, mu_ms, A_ms, K_mm_invs), index_to_motion
     
-def test(prefix, index_to_motion, m, d, trained_params, mode='code', max_predictions=100):
+def test(prefix, index_to_motion, trained_params, max_predictions=100):
     # Load and process test data
-    index_to_motion, motion_names, X_list, y_list, _ = load_data(prefix)
-    _, _, y_list = vector_to_scalar_Y(X_list, y_list, coord=0)
+    index_to_motion, motion_names, X_list, Y_list, _ = load_data(prefix)
     print('Number of motions to predict: ', len(set(motion_names)))
-    # Dimension list
-    L = index_to_motion.shape[0]; dims = [m, L, d]
-    # Predict using given trained params stored in the tuple trained_params
-    if mode == 'simple':
-        # Extract optimal trained params
-        thetas, X_ms, mu_ms, A_ms, K_mm_invs = trained_params
-        # Predict each trajectory/timeseries in the test dataset
-        num_predicted = 0
-        pred = []; gt = []
-        pbar = tqdm(zip(X_list, y_list), total=min(len(y_list), max_predictions), leave=False)
-        for X_test, y_test in pbar:
-            partial_len = X_test.shape[0]//2
-            # Get predict and ground truth motions
-            pred_index = simple_predict(X_test[:partial_len], y_test[:partial_len], thetas, X_ms, mu_ms, A_ms, K_mm_invs)
-            pred_motion = index_to_motion[pred_index]
-            gt_motion = motion_names[num_predicted]
-            pbar.set_description(f'Predict: {pred_motion}; gt: {gt_motion}')
-            #print(f'Predict: {pred_motion}; gt: {gt_motion}')
-            # Append results to lists for final evaluation
-            pred.append(pred_motion); gt.append(gt_motion)
-            num_predicted += 1
-            if num_predicted >= min(len(y_list), max_predictions):
-                break
-        # Final evaluation
-        print('Precision is:', precision(pred, gt))
 
-    if mode == 'code':
-        pass
+    # Dimension list
+    num_motion = index_to_motion.shape[0]
+
+    # Extract optimal trained params
+    X_m, Z, Sigma, Mu, W, Phi, Theta, mu_ms, A_ms, K_mm_invs = trained_params
+    Sigma_ij, Mu_ij, Alpha_ij, Theta_ij, Phi_ij = get_param_matrices_from_core_params(Sigma, Mu, W, Phi, Theta)
+    kernel_params_ijs = []
+    for k in range(num_motion):
+        kernel_params_ijs.append((Sigma_ij[k], Mu_ij[k], Alpha_ij[k], Phi_ij[k], Theta_ij[k]))
+
+    # Predict each trajectory/timeseries in the test dataset
+    num_predicted = 0
+    pred = []; gt = []
+    pbar = tqdm(zip(X_list, Y_list), total=min(len(Y_list), max_predictions), leave=False)
+    for X_test, Y_test in pbar:
+        # Get predict and ground truth motions
+        pred_index = simple_predict(X_test, Y_test, kernel_params_ijs, X_m, Z, mu_ms, A_ms, K_mm_invs)
+        pred_motion = index_to_motion[pred_index]
+        gt_motion = motion_names[num_predicted]
+        pbar.set_description(f'Predict: {pred_motion}; gt: {gt_motion}')
+
+        # Append results to lists for final evaluation
+        pred.append(pred_motion); gt.append(gt_motion)
+        num_predicted += 1
+        if num_predicted >= min(len(Y_list), max_predictions):
+            break
+    # Final evaluation
+    print('Precision is:', precision(pred, gt))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='CLI arguments')
-    parser.add_argument('--mode', type=str, default='simple', help='Training mode')
+    parser.add_argument('--train_mode', type=str, default='train', help='Type of training/exploration')
     parser.add_argument('--data_mode', type=str, default='artificial')
-    parser.add_argument('--num_inducing_pts', type=int, default=2, help='Number of inducing points for the model')
-    parser.add_argument('--motion_code_degree', type=int, default=8, help='Dimension of motion code')
+    parser.add_argument('--num_inducing_pts', type=int, default=10, help='Number of inducing points for the model')
+    parser.add_argument('--num_kernel_comps', type=int, default=2, help='Number of components for kernel')
+    parser.add_argument('--motion_code_dim', type=int, default=2, help='Dimension of motion code')
     args = parser.parse_args()
 
     if args.data_mode == 'artificial':
@@ -146,33 +118,35 @@ if __name__ == '__main__':
     else:
         prefix = 'data/auslan/processed/'
 
-    m = args.num_inducing_pts; d = args.motion_code_degree
+    m = args.num_inducing_pts
+    latent_dim = args.motion_code_dim
+    Q = args.num_kernel_comps
     max_predictions = 200
-    color_list = ['red', 'blue', 'green', 'yellow', 'black', 'orange', 'brown', 'grey', 'purple', 'hotpink']
 
-    if args.mode == 'explore':
-        index_to_motion, motion_names, X_list_data, Y_list_data, indices = load_data(prefix=prefix)
+    if args.train_mode == 'explore':
+        index_to_motion, motion_names, X_list_data, Y_list_data, indices = load_data(prefix=prefix+'train')
         X_list = []; y_list = []
         for X_data in X_list_data:
             X_list.append(X_data.reshape(-1))
+        explore_coord = 0
         for Y_data in Y_list_data:
-            y_list.append(Y_data[:, 12])
-        plot_timeseries(index_to_motion, X_list, y_list, indices, colors=color_list)
+            y_list.append(Y_data[:, explore_coord])
+        plot_timeseries(index_to_motion, X_list, y_list, indices)
 
-    # Simple classification mode
-    if args.mode == 'simple':
+    # Motion code classification
+    if args.train_mode == 'train':
         start_time = time.time()
         print('\n--------------------------------------------')
-        print('Number of inducing points: ', args.num_inducing_pts)
+        print('Number of inducing points: ', m)
+        print('Number of kernel component: ', Q)
+        print('Motion code dimension: ', latent_dim)
         print('Training...')
-        trained_params, index_to_motion = train(prefix=prefix+'train', m=m, d=d, mode='simple', colors=color_list)
+        trained_params, index_to_motion = train(prefix=prefix+'train', m=m, Q=Q, latent_dim=latent_dim, sigma_y=0.1)
         print('Done training. Take {:.3f} seconds'.format(time.time()-start_time))
+        '''
+        # Testing
         print('\n--------------------------------------------')
         print('Testing...')
-        test(prefix=prefix+'test', index_to_motion=index_to_motion, m=m, d=d, 
-            trained_params=trained_params, mode='simple', max_predictions=max_predictions)
-
-    # Latent code mode
-    if args.mode =='code':
-        theta0, Z, Theta1, X_m = train(prefix, m, d, mode=args.mode)
-        trained_params = [theta0, Z, Theta1, X_m]      
+        test(prefix=prefix+'test', index_to_motion=index_to_motion,  
+            trained_params=trained_params, max_predictions=max_predictions)
+        '''

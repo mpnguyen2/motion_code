@@ -6,22 +6,30 @@ import argparse
 def clear():
     os.system('clear')
 
-# Saving data: 
-# we need 3 files for motion to index dict, index to motion array, motion names array,
-# And a main data file with X (x of all timeseries concatenated), Y (y of all timeseries concatenated), 
-# & number of observations of each data. 
 def save_data(prefix, index_to_motion, motion_to_index, motion_names, num_observations, X, Y):
+    '''
+    Save data to 4 different files:
+    1. 3 files for motion to index dict, index to motion array, motion names array
+    2. a main data file with X (x of all timeseries concatenated), Y (y of all timeseries concatenated), 
+        & number of observations of each data. 
+    '''
     # Saving look up dictionaries
     np.savetxt(prefix + '_index_to_motion.txt', index_to_motion, fmt='%s')
     with open(prefix + '_motion_to_index.pickle', 'wb') as handle:
         pickle.dump(motion_to_index, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
     # Saving motion names for all motions/samples
     np.savetxt(prefix + '_motion_names.txt', motion_names, fmt='%s')
-    # Saving main timeseries data: big Y=f(X) and accumulated number of observations for these timeseries
+    
+    # Saving main timeseries data: a big Y=f(X) and accumulated number of observations for these timeseries
     np.savez(prefix + '_data', X=X, Y=Y, num_observations=num_observations)    
 
-def process_data(input_dir, output_dir, file_format='tsd', max_num_motions=10):
+def process_dataset(input_dir, output_dir, file_format='tsd', max_num_motions=10):
     '''
+    Process a given time series dataset in a directory.
+
+    Parameters
+    ----------
     input_dir: Root directory to data files
     output_dir: Directory to save converted data
     file_format: file type for timeseries data
@@ -29,10 +37,12 @@ def process_data(input_dir, output_dir, file_format='tsd', max_num_motions=10):
     time_step: rate of sampling. Default to 100 frames per second
     '''
     print('Loading data...')
+
     # Load data and get motion names for each timeseries, together with motion name to index & index to name look-up dictionary
     index_to_motion, motion_to_index, motion_names, Y, num_observations = \
         get_motion_data_from_dir(dir_name=input_dir, file_format=file_format, max_num_motions=max_num_motions)
     print('Loaded data. Preprocessing data...')
+
     # Create time X arrays: 2 big arrays for Y=f(X) time-series data
     X = np.array([])
     for i in range(len(num_observations)-1):
@@ -41,29 +51,30 @@ def process_data(input_dir, output_dir, file_format='tsd', max_num_motions=10):
             X = np.concatenate((X, current_time_var), axis=0)
         else:
             X = current_time_var
+
     # Convert index_to_motion and motion_names to np array of strings
     index_to_motion = np.array(index_to_motion, dtype=str)
     motion_names = np.array(motion_names, dtype=str)
+
     # Store list of timeseries data into 3 arrays X, Y (), and num_observations
     # Store motion names into numpy txt file, and motion name to index look-up dictionary to pickle file
     print('Done processing data.\n')
+
     # General information
     print('General information:')
     print('Number of samples/motions: ', len(motion_names))
-    #print('First motion types: ', index_to_motion[:4]) 
     print('Number of features in timeseries: ', Y.shape[1])
+
     # Save files: use npz for arrays, txt for str arrays, and pickle for dictionaries
     print('\nSaving data files...')
     save_data(output_dir, index_to_motion, motion_to_index, motion_names, num_observations, X, Y)
     print('Data files saved. Data processing done!')
 
-# Functions seed for generating synthetic data
-def func1(x):
-    return 1.0 * np.sin(x * 3 * np.pi) + 0.3 * np.cos(x * 9 * np.pi) +  0.5 * np.sin(x * 7 * np.pi) 
-def func2(x):
-    return 0.1 * np.sin(x * 1.5 * np.pi) + 1 * np.cos(x * 6 * np.pi) - 0.1 * np.sin(x * 7 * np.pi) 
-def func3(x):
-    return 0.5 * np.sin(x * 4.5 * np.pi) - 1 * np.cos(x * 2.5 * np.pi) + 0.6 * np.sin(x * 9 * np.pi) 
+## Functions seed for generating synthetic data ##
+def func_factory(coef, arg):
+    def func(x):
+        return coef[0] * np.sin(x * arg[0] * np.pi) + coef[1] * np.cos(x * arg[1] * np.pi) +  coef[2] * np.sin(x * arg[2] * np.pi) 
+    return func
 
 def generate_gaussian_data(funcs, num_series_with_type, num_pts_per_series=10, sigma=0.1):
     assert(len(funcs) == len(num_series_with_type))
@@ -71,14 +82,15 @@ def generate_gaussian_data(funcs, num_series_with_type, num_pts_per_series=10, s
     N = num_pts_per_series # Number of points per series
     base_X = np.linspace(0, 1, num=num_pts_per_series) # base times
     motion_names = []; num_observations = [0]
-    # motion dictionary
+
+    # Motion dictionary
     index_to_motion = np.array([('motion_' + str(l+1)) for l in range(num_type)], dtype=str)
     motion_to_index = {}
     for l in range(num_type):
         motion_to_index['motion_' + str(l+1)] = l
-    # Initialize X and Y
-    X = None; Y = None
+
     # Generate data X, Y, and motion_names according to number of series needed each type
+    X = None; Y = None
     for l in range(num_type):
         start_ind = 0
         if X is None:
@@ -104,13 +116,13 @@ def generate_synthetic_data(funcs, num_train, num_test, prefix, num_pts_per_seri
     print('Saving artificial train data...')
     save_data(prefix+'train', index_to_motion, motion_to_index, motion_names, num_observations, X, Y)
     print('Train data files saved.')
+
     # Generate testing data
     print('\nGenerating artificial test data...')    
     index_to_motion, motion_to_index, motion_names, num_observations, X, Y = generate_gaussian_data(funcs, [num_test]*len(funcs), num_pts_per_series, sigma)
     print('Saving artificial test data...')
     save_data(prefix+'test', index_to_motion, motion_to_index, motion_names, num_observations, X, Y)
     print('Test data files saved.')
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='CLI arguments')
@@ -123,6 +135,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.mode == 'artificial':
         # We choose a fix set of synthetic data's generate functions
+        func1 = func_factory([1.0, 0.3, 0.5], [3, 9, 7])
+        func2 = func_factory([0.1, 1, -0.1], [1.5, 6, 7])
+        func3 = func_factory([0.5, -1,  0.6], [4.5, 2.5, 9])
         funcs = [func1, func2, func3]
         generate_synthetic_data(funcs, num_train=args.num_train, num_test=args.num_test, 
             prefix='data/artificial/', num_pts_per_series = args.num_pts, sigma=args.sigma)
@@ -134,17 +149,11 @@ if __name__ == '__main__':
         # Process training data
         main_dir = 'data/auslan'
         print('Process training data...')
-        process_data(input_dir=main_dir+'/train', output_dir=main_dir+'/processed/train', max_num_motions=max_num_motions)
+        process_dataset(input_dir=main_dir+'/train', output_dir=main_dir+'/processed/train', max_num_motions=max_num_motions)
         print('Done processing training data.\n')
         print('--------------------------------------------')
         # Process first test set
         print('Process test data...')   
-        process_data(input_dir=main_dir+'/train', output_dir=main_dir+'/processed/test', max_num_motions=max_num_motions)
+        process_dataset(input_dir=main_dir+'/train', output_dir=main_dir+'/processed/test', max_num_motions=max_num_motions)
         print('Done processing test data.\n')
         print('--------------------------------------------')
-        ''' Option second test set
-        # Process second test set
-        print('Process test 2 data...')
-        process_data(dir_name=main_dir+'/test2', prefix=main_dir+'/processed/test2', max_num_motions=max_num_motions)
-        print('Done processing test 2 data.')
-        '''
