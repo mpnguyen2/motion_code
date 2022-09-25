@@ -31,40 +31,41 @@ def jitter(d, value=1e-6):
     return jnp.eye(d)*value
 
 ## Methods for finding kernels from data ##
-def get_param_matrices_from_core_params(Sigma, Mu, W, Phi, Theta):
+def get_param_matrices_from_core_params(Sigma, W):
     """
     Returns parameters for pairs of components with shape (num_comp, num_comp, Q) for each motion.
-
     Parameters
     ----------
     Sigma, Mu, W, Phi, Theta: ndarray
         Core kernel parameters with shape (num_motion, num_comp, Q)
     """
     num_motion = Sigma.shape[0]
-    num_comp = Sigma.shape[1]
-    Q = Sigma.shape[2]
+    #num_comp = Sigma.shape[1]
+    #Q = Sigma.shape[2]
     
     # Calculate Sigma
-    Sigma_i = Sigma.reshape(num_motion, num_comp, 1, Q)
-    Sigma_j = Sigma.reshape(num_motion, 1, num_comp, Q)
-    Sigma_ij = 2 * Sigma_i * 1.0/(Sigma_i + Sigma_j) * Sigma_j
+    #Sigma_i = Sigma.reshape(num_motion, num_comp, 1, Q)
+    #Sigma_j = Sigma.reshape(num_motion, 1, num_comp, Q)
+    #Sigma_ij = Sigma.reshape(num_motion, num_comp, num_comp, Q) #2 * Sigma_i * 1.0/(Sigma_i + Sigma_j) * Sigma_j
 
     # Calculate Mu
-    Mu_i = Mu.reshape(num_motion, num_comp, 1, Q)
-    Mu_j = Mu.reshape(num_motion, 1, num_comp, Q)
-    Mu_ij = 1/(Sigma_i+Sigma_j) * (Mu_i*Sigma_j + Sigma_i*Mu_j)
+    #Mu_i = Mu.reshape(num_motion, num_comp, 1, Q)
+    #Mu_j = Mu.reshape(num_motion, 1, num_comp, Q)
+    #Mu_ij = 1/(Sigma_i+Sigma_j) * (Mu_i*Sigma_j + Sigma_i*Mu_j)
 
     # Calculate Alpha
-    W_i = W.reshape(num_motion, num_comp, 1, Q)
-    W_j = W.reshape(num_motion, 1, num_comp, Q)
-    W_ij = W_i * W_j * jnp.exp(-0.25 * (Sigma_i-Sigma_j) * 1.0/(Sigma_i+Sigma_j) * (Sigma_i-Sigma_j))
-    Alpha_ij = W_ij * TWO_PI_SQRT * jnp.sqrt(Sigma_ij)
+    #W_i = W.reshape(num_motion, num_comp, 1, Q)
+    #W_j = W.reshape(num_motion, 1, num_comp, Q)
+    #W_ij = W_i * W_j * jnp.exp(-0.25 * (Mu_i-Mu_j) * 1.0/(Sigma_i+Sigma_j) * (Mu_i-Mu_j))
+    #W_ij = W_i * W_j
+    #Alpha_ij = W.reshape(num_motion, num_comp, num_comp, Q) #W_ij * TWO_PI_SQRT * jnp.sqrt(Sigma_ij)
     
     # Calculate Theta and Phi
-    Theta_ij = Theta.reshape(num_motion, num_comp, 1, Q) - Theta.reshape(num_motion, 1, num_comp, Q)
-    Phi_ij = Phi.reshape(num_motion, num_comp, 1, Q) - Phi.reshape(num_motion, 1, num_comp, Q)
+    #Theta_ij = Theta.reshape(num_motion, num_comp, 1, Q) - Theta.reshape(num_motion, 1, num_comp, Q)
+    #Phi_ij = Phi.reshape(num_motion, num_comp, 1, Q) - Phi.reshape(num_motion, 1, num_comp, Q)
 
-    return Sigma_ij, Mu_ij, Alpha_ij, Theta_ij, Phi_ij
+    #return Sigma_ij, Mu_ij, Alpha_ij, Theta_ij, Phi_ij
+    return Sigma.reshape(num_motion, -1), W.reshape(num_motion, -1)
 
 def repeat_param_for_kernel(param, num_x1, num_x2):
     """
@@ -75,7 +76,6 @@ def repeat_param_for_kernel(param, num_x1, num_x2):
     ----------
     param: has shape (num_comp, num_comp, Q)
     num_x1, num_x2: number of time variable for X1 and X2
-
     """
     # Repeat parameter num_x1 * num_x2 times and reshape in the form of (num_comp, num_x1, num_comp, num_x2, Q)
     num_comp = param.shape[0]
@@ -87,7 +87,7 @@ def repeat_param_for_kernel(param, num_x1, num_x2):
     
     return repeated_param.reshape(num_comp, num_x1, num_comp*num_x2, Q).reshape(num_comp*num_x1, num_comp*num_x2, Q)
 
-def spectral_kernel(X1, X2, sigma_ij, mu_ij, alpha_ij, phi_ij, theta_ij):
+def spectral_kernel(X1, X2, sigma_ij, alpha_ij):
     """
     Returns spectral kernel between two sets of points in X. 
     For simplicity, we assume points in X is time variable with dim 1
@@ -114,12 +114,18 @@ def spectral_kernel(X1, X2, sigma_ij, mu_ij, alpha_ij, phi_ij, theta_ij):
 
     # kernel parameters that are repeated to allow vectorization.
     sigma = repeat_param_for_kernel(sigma_ij, num_x1, num_x2)
-    mu = repeat_param_for_kernel(mu_ij, num_x1, num_x2)
+    #mu = repeat_param_for_kernel(mu_ij, num_x1, num_x2)
     alpha = repeat_param_for_kernel(alpha_ij, num_x1, num_x2)
-    phi = repeat_param_for_kernel(phi_ij, num_x1, num_x2)
-    theta = repeat_param_for_kernel(theta_ij, num_x1, num_x2)
+    #phi = repeat_param_for_kernel(phi_ij, num_x1, num_x2)
+    #theta = repeat_param_for_kernel(theta_ij, num_x1, num_x2)
 
-    return jnp.sum(alpha * jnp.exp(-0.5 *(X12+theta)*sigma*(X12+theta)) * jnp.cos((X12+theta)*mu+phi), axis=-1)
+    return jnp.sum(alpha * jnp.exp(-0.5 * X12 * sigma * X12), axis=-1)
+
+def spectral_kernel2(X1, X2, sigma_ij, alpha_ij):
+    num_x1 = X1.shape[0]
+    num_x2 = X2.shape[0]
+    X12 = (X1.reshape(num_x1, 1) - X2.reshape(1, num_x2)).reshape(num_x1, num_x2, 1)
+    return jnp.sum(alpha_ij.reshape(1, 1, -1) * jnp.exp(-0.5 * X12 * sigma_ij.reshape(1, 1, -1) * X12), axis=-1)
 
 ## Pack/unpack parameters ##
 def pack_params(params):
@@ -129,7 +135,6 @@ def pack_params(params):
     Parameters
     ----------
     params is a list of parameters
-
     '''
     flatten = []
     for p in params:
@@ -148,17 +153,18 @@ def unpack_params(params, dims):
     X_m = params[cnt:cnt+m*latent_dim]; cnt += m*latent_dim
     Z = params[cnt:cnt+num_motion*latent_dim]; cnt += num_motion*latent_dim
     Sigma = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
-    Sigma = Sigma.reshape(num_motion, num_comp, Q)
-    Mu = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
-    Mu = Mu.reshape(num_motion, num_comp, Q)
+    Sigma = Sigma.reshape(num_motion, Q)
+    #Mu = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
+    #Mu = Mu.reshape(num_motion, num_comp, Q)
     W = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
-    W = W.reshape(num_motion, num_comp, Q)
-    Phi = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
-    Phi = Phi.reshape(num_motion, num_comp, Q)
-    Theta = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
-    Theta = Theta.reshape(num_motion, num_comp, Q)
+    W = W.reshape(num_motion, Q)
+    #Phi = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
+    #Phi = Phi.reshape(num_motion, num_comp, Q)
+    #Theta = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
+    #Theta = Theta.reshape(num_motion, num_comp, Q)
 
-    return jnp.array(X_m).reshape(m, latent_dim), jnp.array(Z).reshape(num_motion, latent_dim), Sigma, Mu, W, Phi, Theta
+    #return jnp.array(X_m).reshape(m, latent_dim), jnp.array(Z).reshape(num_motion, latent_dim), Sigma, Mu, W, Phi, Theta
+    return jnp.array(X_m).reshape(m, latent_dim), Z.reshape(num_motion, latent_dim), Sigma, W
 
 ## ELBO functions ##
 def elbo_fn_from_kernel(K_mm, K_mn, y, trace_avg_all_comps, sigma_y):
@@ -196,7 +202,6 @@ def elbo_fn(X_list, Y_list, indices, sigma_y, dims):
     indices: map each timeseries to the motion (number) it represents.
     sigma_y: Target noise.
     dims: tuple of (num_motion, num_comp, m=num_inducing_pts, latent_dim)
-
     """
 
     # m is the number of inducing points
@@ -207,20 +212,20 @@ def elbo_fn(X_list, Y_list, indices, sigma_y, dims):
         # Z is all motion codes stacking together with shape (num_motion, latent_dim)
         # Currently, each motion has a separate set of params (sigma, mu, w, phi, theta)
         # They are stacked in (Sigma, Mu, W, Phi, Theta), with each has shape (num_motion, num_comp, Q)
-        X_m, Z, Sigma, Mu, W, Phi, Theta = unpack_params(params, dims)
+        X_m, Z, Sigma, W = unpack_params(params, dims)
         Sigma = softplus(Sigma)
         W = softplus(W)
         
         # Get parameters for pairs of components for all motions. Each stacked param has shape (num_motion, num_comp, num_comp, Q)
-        Sigma_ij, Mu_ij, Alpha_ij, Theta_ij, Phi_ij = get_param_matrices_from_core_params(Sigma, Mu, W, Phi, Theta)
+        #Sigma_ij, Alpha_ij = get_param_matrices_from_core_params(Sigma, W)
 
         loss = 0
         for i in range(len(X_list)):
             k = indices[i]  # motion index of current timeseries
-            X_m_k = sigmoid(X_m @ Z[k])
-            K_mm = spectral_kernel(X_m_k, X_m_k, Sigma_ij[k], Mu_ij[k], Alpha_ij[k], Phi_ij[k], Theta_ij[k])
-            K_mn = spectral_kernel(X_m_k, X_list[i], Sigma_ij[k], Mu_ij[k], Alpha_ij[k], Phi_ij[k], Theta_ij[k])
-            trace_avg_all_comps = TWO_PI_SQRT * jnp.sum(W[k]**2)/num_comp
+            X_m_k = sigmoid(X_m@Z[k])
+            K_mm = spectral_kernel2(X_m_k, X_m_k, Sigma[k], W[k]) + jitter(X_m_k.shape[0])
+            K_mn = spectral_kernel2(X_m_k, X_list[i], Sigma[k], W[k])
+            trace_avg_all_comps = jnp.sum(W[k]**2)/num_comp
             y_n_k = jnp.swapaxes(Y_list[i], 0, 1).reshape(-1, 1) # shape (num_comp*n, 1)
             loss += elbo_fn_from_kernel(K_mm, K_mn, y_n_k, trace_avg_all_comps, sigma_y)
         
@@ -241,12 +246,14 @@ def phi_opt(X_m, X_list, Y_list, sigma_y, kernel_params_ij):
     Find optimal mu_m and A_m: approximate distribution params for f_m.
     Note that mu_m and A_m are for a single motion with all timeseries data corresponding to that motion.
     """
-    sigma_ij, mu_ij, alpha_ij, theta_ij, phi_ij = kernel_params_ij
+    #sigma_ij, mu_ij, alpha_ij, theta_ij, phi_ij = kernel_params_ij
+    sigma_ij, alpha_ij= kernel_params_ij
+
     precision = 1.0/(sigma_y**2)
     B = len(X_list)
 
     # Get K_mm and its inverse
-    K_mm = spectral_kernel(X_m, X_m, sigma_ij, mu_ij, alpha_ij, phi_ij, theta_ij)\
+    K_mm = spectral_kernel2(X_m, X_m, sigma_ij, alpha_ij)\
         + jitter(X_m.shape[0])
     K_mm_inv = jnp.linalg.inv(K_mm)
     
@@ -254,7 +261,7 @@ def phi_opt(X_m, X_list, Y_list, sigma_y, kernel_params_ij):
     K_nm_list = []
     K_mn_list = []
     for j in range(B):
-        K_nm_list.append(spectral_kernel(X_list[j], X_m, sigma_ij, mu_ij, alpha_ij, phi_ij, theta_ij))
+        K_nm_list.append(spectral_kernel2(X_list[j], X_m, sigma_ij, alpha_ij))
         K_mn_list.append(K_nm_list[j].T)
 
     # Get Sigma in mean and variance formulas
@@ -281,9 +288,9 @@ def q(X_test, X_m, kernel_params_ij, mu_m, A_m, K_mm_inv):
     """
     Distribution prediction for a new collection of time variables
     """
-    sigma_ij, mu_ij, alpha_ij, phi_ij, theta_ij = kernel_params_ij
-    K_ss = spectral_kernel(X_test, X_test, sigma_ij, mu_ij, alpha_ij, phi_ij, theta_ij)
-    K_sm = spectral_kernel(X_test, X_m, sigma_ij, mu_ij, alpha_ij, phi_ij, theta_ij)
+    sigma_ij, alpha_ij = kernel_params_ij
+    K_ss = spectral_kernel2(X_test, X_test, sigma_ij, alpha_ij)
+    K_sm = spectral_kernel2(X_test, X_m, sigma_ij, alpha_ij)
     K_ms = K_sm.T
 
     f_q = (K_sm @ K_mm_inv).dot(mu_m)

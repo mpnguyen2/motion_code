@@ -11,6 +11,9 @@ import matplotlib.patches as mpatches
 from sparse_gp import *
 from utils import *
 
+def opt_callback(x):
+    print("Hello")
+
 def train(prefix, m=10, Q=8, latent_dim=3, sigma_y=0.1):
     # Load and process data
     index_to_motion, _, X_list, Y_list, indices = load_data(prefix)
@@ -20,25 +23,28 @@ def train(prefix, m=10, Q=8, latent_dim=3, sigma_y=0.1):
     dims = (num_motion, num_comp, m, latent_dim, Q)
 
     # We optimize X_m, Z, and Kernel parameters including Sigma, Mu, W, Phi, Theta  
-    # np.tile(np.linspace(min_X, max_X, m), (1, latent_dim)).reshape  
-    X_m_start = np.zeros((m, latent_dim))
-    Z_start = np.zeros((num_motion, latent_dim))
-    Sigma_start = softplus_inv(np.ones((num_motion, num_comp, Q)))
-    Mu_start = np.zeros((num_motion, num_comp, Q))
-    W_start = softplus_inv(np.ones((num_motion, num_comp, Q)))
-    Phi_start = np.zeros((num_motion, num_comp, Q))
-    Theta_start = np.zeros((num_motion, num_comp, Q))
+    # np.tile(np.linspace(min_X, max_X, m), (1, latent_dim)).reshape 
+    # X_m_start = np.repeat(sigmoid_inv(np.linspace(0.1, 0.9, m)).reshape(1, -1), num_motion, axis=0) 
+    X_m_start = np.repeat(sigmoid_inv(np.linspace(0.1, 0.9, m)).reshape(1, -1), latent_dim, axis=0).swapaxes(0, 1)
+    Z_start = np.ones((num_motion, latent_dim))
+    Sigma_start = softplus_inv(np.ones((num_motion, Q)))
+    #Mu_start = np.zeros((num_motion, num_comp, Q))
+    W_start = softplus_inv(np.ones((num_motion, Q)))
+    #Phi_start = np.zeros((num_motion, num_comp, Q))
+    #Theta_start = np.zeros((num_motion, num_comp, Q))
 
     res = minimize(fun=elbo_fn(X_list, Y_list, indices, sigma_y, dims),
-        x0 = pack_params([X_m_start, Z_start, Sigma_start, Mu_start, W_start, Phi_start, Theta_start]),
-        method='L-BFGS-B', jac=True)
+        x0 = pack_params([X_m_start, Z_start, Sigma_start, W_start]),
+        method='L-BFGS-B', jac=True, callback=opt_callback)
     print('Inducing pts, motion codes, and kernel params successfully optimized: ', res.success)
-    X_m, Z, Sigma, Mu, W, Phi, Theta = unpack_params(res.x, dims=dims)
+    X_m, Z, Sigma, W = unpack_params(res.x, dims=dims)
     Sigma = softplus(Sigma)
     W = softplus(W)
+    print("Latent codes are: ")
+    print(np.array(Z))
 
     # Transform kernel parameter to "pair" form
-    Sigma_ij, Mu_ij, Alpha_ij, Theta_ij, Phi_ij = get_param_matrices_from_core_params(Sigma, Mu, W, Phi, Theta)
+    #Sigma_ij, Alpha_ij = get_param_matrices_from_core_params(Sigma, W)
 
     # We now optimize distribution params for each motion and store means in mu_ms, covariances in A_ms, and for convenient K_mm_invs
     mu_ms = []; A_ms = []; K_mm_invs = []
@@ -53,22 +59,22 @@ def train(prefix, m=10, Q=8, latent_dim=3, sigma_y=0.1):
 
     # For each motion, using trained kernel parameter in "pair" form to obtain optimal distribution params for each motion.
     for k in range(num_motion):
-        kernel_params_ij = (Sigma_ij[k], Mu_ij[k], Alpha_ij[k], Phi_ij[k], Theta_ij[k])
-        mu_m, A_m, K_mm_inv = phi_opt(sigmoid(X_m @ Z[k]), X_motion_lists[k], Y_motion_lists[k], sigma_y, kernel_params_ij) 
+        kernel_params_ij = (Sigma[k], W[k])
+        mu_m, A_m, K_mm_inv = phi_opt(sigmoid(X_m@Z[k]), X_motion_lists[k], Y_motion_lists[k], sigma_y, kernel_params_ij) 
         mu_ms.append(mu_m); A_ms.append(A_m); K_mm_invs.append(K_mm_inv)
 
     # Choose simple equally space test data and produce predicted results to sanity check the training
     print('\nSimple sanity check (plot results saved in out/multiple folder)...')
     X_test = np.linspace(-0.1, 1.1, 30).reshape(-1, 1); means = []; covars = []
     for k in range(num_motion):
-        kernel_params_ij = (Sigma_ij[k], Mu_ij[k], Alpha_ij[k], Phi_ij[k], Theta_ij[k])
-        mean, covar = q(X_test, sigmoid(X_m @ Z[k]), kernel_params_ij, mu_ms[k], A_ms[k], K_mm_invs[k])
+        kernel_params_ij = (Sigma[k], W[k])
+        mean, covar = q(X_test, sigmoid(X_m@Z[k]), kernel_params_ij, mu_ms[k], A_ms[k], K_mm_invs[k])
         means.append(mean); covars.append(covar)
     plot_motion_types(index_to_motion, X_motion_lists, Y_motion_lists, X_test, 
             means=means, covars=covars)
     print('Sanity check done.')
 
-    return (X_m, Z, Sigma, Mu, W, Phi, Theta, mu_ms, A_ms, K_mm_invs), index_to_motion
+    return (X_m, Sigma, W, mu_ms, A_ms, K_mm_invs), index_to_motion
     
 def test(prefix, index_to_motion, trained_params, max_predictions=100):
     # Load and process test data
@@ -79,11 +85,11 @@ def test(prefix, index_to_motion, trained_params, max_predictions=100):
     num_motion = index_to_motion.shape[0]
 
     # Extract optimal trained params
-    X_m, Z, Sigma, Mu, W, Phi, Theta, mu_ms, A_ms, K_mm_invs = trained_params
-    Sigma_ij, Mu_ij, Alpha_ij, Theta_ij, Phi_ij = get_param_matrices_from_core_params(Sigma, Mu, W, Phi, Theta)
+    X_m, Z, Sigma, W, mu_ms, A_ms, K_mm_invs = trained_params
+    Sigma_ij, Alpha_ij = get_param_matrices_from_core_params(Sigma, W)
     kernel_params_ijs = []
     for k in range(num_motion):
-        kernel_params_ijs.append((Sigma_ij[k], Mu_ij[k], Alpha_ij[k], Phi_ij[k], Theta_ij[k]))
+        kernel_params_ijs.append((Sigma_ij[k], Alpha_ij[k]))
 
     # Predict each trajectory/timeseries in the test dataset
     num_predicted = 0
@@ -109,7 +115,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_mode', type=str, default='train', help='Type of training/exploration')
     parser.add_argument('--data_mode', type=str, default='artificial')
     parser.add_argument('--num_inducing_pts', type=int, default=10, help='Number of inducing points for the model')
-    parser.add_argument('--num_kernel_comps', type=int, default=2, help='Number of components for kernel')
+    parser.add_argument('--num_kernel_comps', type=int, default=1, help='Number of components for kernel')
     parser.add_argument('--motion_code_dim', type=int, default=2, help='Dimension of motion code')
     args = parser.parse_args()
 

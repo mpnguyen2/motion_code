@@ -9,7 +9,7 @@ if [ $artificial == "T" ]; then
     echo "Using artificial data..."
     rm -rf data/artificial/* &&
     python preprocessing.py --num_pts 500 --num_train 30 --num_test 20 --sigma 0.1 &&
-    python train.py --num_inducing_pts 10
+    python train.py --num_inducing_pts 50
 else
     echo "Using auslan data..."
     rm -rf data/auslan/processed/* &&
