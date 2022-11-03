@@ -303,16 +303,16 @@ def simple_predict(X_test, Y_test, kernel_params_ijs, X_m, Z, mu_ms, A_ms, K_mm_
     Simple predict using argmin of negative log-likelihood over all possible classes
     """
     num_motion = len(kernel_params_ijs)
-    ind = -1; min_ll = 0
+    ind = -1; min_ll = 1e9
     y_test = jnp.swapaxes(Y_test, 0, 1).reshape(-1)
     for k in range(num_motion):
         # Calculate likelihood conditioned on motion type k
-        mean, covar = q(X_test, kernel_params_ijs[k], (X_m @ Z[k]), mu_ms[k], A_ms[k], K_mm_invs[k])
-        ll = jnp.log(jnp.linalg.det(covar)) + ((y_test-mean).T)@jnp.linalg.inv(covar)@(y_test-mean)
-        #ll = ((y_test-mean).T)@(y_test-mean)
+        mean, _ = q(X_test, sigmoid(X_m @ Z[k]), kernel_params_ijs[k], mu_ms[k], A_ms[k], K_mm_invs[k])
+        #ll = jnp.log(jnp.linalg.det(covar)) + ((y_test-mean).T)@jnp.linalg.inv(covar)@(y_test-mean)
+        ll = ((y_test-mean).T)@(y_test-mean)
         if ind == -1:
-            ind = k; min_ll = ll[0][0]
-        elif min_ll > ll[0][0]: 
-            ind = k; min_ll = ll[0][0]
+            ind = k; min_ll = ll
+        elif min_ll > ll: 
+            ind = k; min_ll = ll
     
     return ind

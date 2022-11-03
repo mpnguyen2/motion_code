@@ -12,7 +12,8 @@ from sparse_gp import *
 from utils import *
 
 def opt_callback(x):
-    print("Hello")
+    print("Optimizing...")
+    pass
 
 def train(prefix, m=10, Q=8, latent_dim=3, sigma_y=0.1):
     # Load and process data
@@ -74,7 +75,7 @@ def train(prefix, m=10, Q=8, latent_dim=3, sigma_y=0.1):
             means=means, covars=covars)
     print('Sanity check done.')
 
-    return (X_m, Sigma, W, mu_ms, A_ms, K_mm_invs), index_to_motion
+    return (X_m, Z, Sigma, W, mu_ms, A_ms, K_mm_invs), index_to_motion
     
 def test(prefix, index_to_motion, trained_params, max_predictions=100):
     # Load and process test data
@@ -86,10 +87,10 @@ def test(prefix, index_to_motion, trained_params, max_predictions=100):
 
     # Extract optimal trained params
     X_m, Z, Sigma, W, mu_ms, A_ms, K_mm_invs = trained_params
-    Sigma_ij, Alpha_ij = get_param_matrices_from_core_params(Sigma, W)
+    #Sigma_ij, Alpha_ij = get_param_matrices_from_core_params(Sigma, W)
     kernel_params_ijs = []
     for k in range(num_motion):
-        kernel_params_ijs.append((Sigma_ij[k], Alpha_ij[k]))
+        kernel_params_ijs.append((Sigma[k], W[k]))
 
     # Predict each trajectory/timeseries in the test dataset
     num_predicted = 0
@@ -121,6 +122,8 @@ if __name__ == '__main__':
 
     if args.data_mode == 'artificial':
         prefix = 'data/artificial/'
+    elif args.data_mode == 'sound':
+        prefix = 'data/sound/processed/'
     else:
         prefix = 'data/auslan/processed/'
 
@@ -130,6 +133,8 @@ if __name__ == '__main__':
     max_predictions = 200
 
     if args.train_mode == 'explore':
+        print('\n--------------------------------------------')
+        print('Exploring data...')
         index_to_motion, motion_names, X_list_data, Y_list_data, indices = load_data(prefix=prefix+'train')
         X_list = []; y_list = []
         for X_data in X_list_data:
@@ -138,6 +143,7 @@ if __name__ == '__main__':
         for Y_data in Y_list_data:
             y_list.append(Y_data[:, explore_coord])
         plot_timeseries(index_to_motion, X_list, y_list, indices)
+        print('Visualization saved.\n')
 
     # Motion code classification
     if args.train_mode == 'train':
@@ -149,10 +155,8 @@ if __name__ == '__main__':
         print('Training...')
         trained_params, index_to_motion = train(prefix=prefix+'train', m=m, Q=Q, latent_dim=latent_dim, sigma_y=0.1)
         print('Done training. Take {:.3f} seconds'.format(time.time()-start_time))
-        '''
         # Testing
         print('\n--------------------------------------------')
         print('Testing...')
         test(prefix=prefix+'test', index_to_motion=index_to_motion,  
             trained_params=trained_params, max_predictions=max_predictions)
-        '''

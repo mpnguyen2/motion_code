@@ -2,6 +2,7 @@ import pickle
 import numpy as np
 from utils import *
 import argparse
+import scipy.io.wavfile as wavfile
 
 def clear():
     os.system('clear')
@@ -24,9 +25,85 @@ def save_data(prefix, index_to_motion, motion_to_index, motion_names, num_observ
     # Saving main timeseries data: a big Y=f(X) and accumulated number of observations for these timeseries
     np.savez(prefix + '_data', X=X, Y=Y, num_observations=num_observations)    
 
-def process_dataset(input_dir, output_dir, file_format='tsd', max_num_motions=10):
-    '''
-    Process a given time series dataset in a directory.
+class TimeSeriesProcessor:
+    def __init__(self, output_dir):
+        self.output_dir = output_dir
+        self.index_to_motion = []
+        self.motion_names = []
+        self.motion_to_index = {}
+        self.num_observations = [0]
+        self.observation_cnt = 0
+        self.X = np.array([])
+        self.Y = np.array([])
+
+    def save_data(self):
+        # Convert index_to_motion and motion_names to np array of strings
+        self.index_to_motion = np.array(self.index_to_motion, dtype=str)
+        self.motion_names = np.array(self.motion_names, dtype=str)
+        print('Done processing data.\n')
+
+        # General information
+        print('General information:')
+        print('Number of samples/motions: ', len(self.motion_names))
+        print('Number of features in timeseries: ', self.Y.shape[1])
+
+        # Save files: use npz for arrays, txt for str arrays, and pickle for dictionaries
+        print('\nSaving data files...')
+        save_data(self.output_dir, self.index_to_motion, self.motion_to_index, self.motion_names, self.num_observations, self.X, self.Y)
+        print('Data files saved. Data processing done!')
+
+    def add_timeseries(self, time, data, motion_name):
+        self.observation_cnt += data.shape[0]
+        self.num_observations.append(self.observation_cnt)
+        # Update big data array
+        if self.Y.shape[0] != 0:
+            self.Y = np.concatenate((self.Y, data), axis=0)
+            self.X = np.concatenate((self.X, time), axis=0) 
+        else:
+            self.Y = data
+            self.X = time
+        # Update motion name (of current timeseries)
+        self.motion_names.append(motion_name)
+        # Update reference dictionaries if new motion detected
+        if motion_name not in self.motion_to_index:
+            self.motion_to_index[motion_name] = len(self.index_to_motion)
+            self.index_to_motion.append(motion_name)
+
+## Auslan motion data ##
+def read_timeseries(file_name):
+    """
+    Read timeseries and put them together if they are the same motion
+    """
+    f = open(file_name, mode='r')
+    # Each line is a frame contain a fixed number of features
+    data = []
+    while (line := f.readline()):
+        data.append(np.array(line.split(), dtype=float))
+
+    return np.array(data, dtype=float)
+
+def get_all_files_from(dir_name, file_format):
+    """
+    Return paths of all the files in the directory with given name and format
+    """
+    file_paths = []
+    for file in os.scandir(dir_name):
+        if file.is_dir():
+            file_paths.extend(get_all_files_from(file.path, file_format))
+        else:
+            if file.path.endswith(file_format):
+                file_paths.append((file.path, file.name))
+    
+    return file_paths
+
+def extract_data_from_motion_dataset(input_dir, output_dir, file_format='tsd', max_num_motions=10):
+    """
+    Process a given time series dataset in a directory. motion data that includes:
+        1. Dictionaries index to/from motion
+        2. List of motion names for each timeseries
+        3. data that includes all X-values and Y-values of all timeseries concatenated and
+            num_observations array indicating number of observation in each timeseries.
+        (X, Y) = (time, data at that time of time-series)
 
     Parameters
     ----------
@@ -35,42 +112,44 @@ def process_dataset(input_dir, output_dir, file_format='tsd', max_num_motions=10
     file_format: file type for timeseries data
     max_num_motions: Maximum number of motions allowed
     time_step: rate of sampling. Default to 100 frames per second
-    '''
-    print('Loading data...')
+    """
+    processor = TimeSeriesProcessor(output_dir)
+    # Find all data files (other than dirs) with given format
+    file_paths = get_all_files_from(input_dir, file_format)
 
-    # Load data and get motion names for each timeseries, together with motion name to index & index to name look-up dictionary
-    index_to_motion, motion_to_index, motion_names, Y, num_observations = \
-        get_motion_data_from_dir(dir_name=input_dir, file_format=file_format, max_num_motions=max_num_motions)
-    print('Loaded data. Preprocessing data...')
+    # Iterate over each file and append timeseries to list of appropriate motion
+    for file_path, file_name in tqdm(file_paths, leave=False):
+        # Find motion names
+        motion_name = file_name.split('-')[0]
+        data = read_timeseries(file_path)
+        time = np.linspace(0, 1, data.shape[0]).reshape(-1, 1)
+        processor.add_timeseries(time, data, motion_name)
 
-    # Create time X arrays: 2 big arrays for Y=f(X) time-series data
-    X = np.array([])
-    for i in range(len(num_observations)-1):
-        current_time_var = get_time_variables(Y[num_observations[i]:num_observations[i+1]])
-        if X.shape[0] != 0:
-            X = np.concatenate((X, current_time_var), axis=0)
-        else:
-            X = current_time_var
+    processor.save_data()
 
-    # Convert index_to_motion and motion_names to np array of strings
-    index_to_motion = np.array(index_to_motion, dtype=str)
-    motion_names = np.array(motion_names, dtype=str)
+## Sound dataset ##
+def read_sound_timeseries(file_name, down_sampling_rate=100):
+    samplerate, data = wavfile.read(file_name)
+    duration = len(data)/samplerate
+    time = np.arange(0, 1, 1/(duration*samplerate))
+    intervals = np.array(np.arange(0, len(time), len(time)/down_sampling_rate), dtype=int)
+    time = time[intervals]; data = data[intervals]
+    data = np.abs(data)/np.max(np.abs(data))
+    return time, data
 
-    # Store list of timeseries data into 3 arrays X, Y (), and num_observations
-    # Store motion names into numpy txt file, and motion name to index look-up dictionary to pickle file
-    print('Done processing data.\n')
+def extract_data_from_sound_dataset(input_dir, output_dir):
+    processor = TimeSeriesProcessor(output_dir)
+    for single_dir in os.scandir(input_dir):
+        if not single_dir.is_dir() or single_dir.name == 'processed':
+            continue
+        motion_name = single_dir.name
+        for sound_file in os.scandir(single_dir):
+            # Read current timeseries
+            time, data = read_sound_timeseries(sound_file)
+            processor.add_timeseries(time.reshape(-1, 1), data.reshape(-1, 1), motion_name)
+    processor.save_data()
 
-    # General information
-    print('General information:')
-    print('Number of samples/motions: ', len(motion_names))
-    print('Number of features in timeseries: ', Y.shape[1])
-
-    # Save files: use npz for arrays, txt for str arrays, and pickle for dictionaries
-    print('\nSaving data files...')
-    save_data(output_dir, index_to_motion, motion_to_index, motion_names, num_observations, X, Y)
-    print('Data files saved. Data processing done!')
-
-## Functions seed for generating synthetic data ##
+## Synthetic data ##
 def func_factory(coef, arg):
     def func(x):
         return coef[0] * np.sin(x * arg[0] * np.pi) + coef[1] * np.cos(x * arg[1] * np.pi) +  coef[2] * np.sin(x * arg[2] * np.pi) 
@@ -111,7 +190,7 @@ def generate_gaussian_data(funcs, num_series_with_type, num_pts_per_series=10, s
 
 def generate_synthetic_data(funcs, num_train, num_test, prefix, num_pts_per_series=10, sigma=0.1):
     # Generate training data
-    print('Generating artificial train data...')    
+    print('\nGenerating artificial train data...')    
     index_to_motion, motion_to_index, motion_names, num_observations, X, Y = generate_gaussian_data(funcs, [num_train]*len(funcs), num_pts_per_series, sigma)
     print('Saving artificial train data...')
     save_data(prefix+'train', index_to_motion, motion_to_index, motion_names, num_observations, X, Y)
@@ -124,6 +203,7 @@ def generate_synthetic_data(funcs, num_train, num_test, prefix, num_pts_per_seri
     save_data(prefix+'test', index_to_motion, motion_to_index, motion_names, num_observations, X, Y)
     print('Test data files saved.')
 
+## Main program ##
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='CLI arguments')
     parser.add_argument('--mode', type=str, default='artificial', help='Whether to generate artificial or data from dataset')
@@ -133,6 +213,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_test', type=int, default=1, help='Number of testing timeseries per type')
     parser.add_argument('--sigma', type=float, default=0.1, help='Sigma, or variance in noise added to original series')
     args = parser.parse_args()
+
     if args.mode == 'artificial':
         # We choose a fix set of synthetic data's generate functions
         func1 = func_factory([1.0, 0.3, 0.5], [3, 9, 7])
@@ -141,19 +222,31 @@ if __name__ == '__main__':
         funcs = [func1, func2, func3]
         generate_synthetic_data(funcs, num_train=args.num_train, num_test=args.num_test, 
             prefix='data/artificial/', num_pts_per_series = args.num_pts, sigma=args.sigma)
-    else:
+    elif args.mode == 'auslan':
         # Rate: 100 frames per second
         # time_step = 1e-2 
         # Number of maximum allowed motion
         max_num_motions = 2
         # Process training data
         main_dir = 'data/auslan'
-        print('Process training data...')
-        process_dataset(input_dir=main_dir+'/train', output_dir=main_dir+'/processed/train', max_num_motions=max_num_motions)
-        print('Done processing training data.\n')
+        print('Process auslan motion training data...')
+        extract_data_from_motion_dataset(input_dir=main_dir+'/train', output_dir=main_dir+'/processed/train', max_num_motions=max_num_motions)
+        print('Done processing auslan motion training data.\n')
         print('--------------------------------------------')
         # Process first test set
         print('Process test data...')   
-        process_dataset(input_dir=main_dir+'/train', output_dir=main_dir+'/processed/test', max_num_motions=max_num_motions)
+        extract_data_from_motion_dataset(input_dir=main_dir+'/test1', output_dir=main_dir+'/processed/test', max_num_motions=max_num_motions)
+        print('Done processing test data.\n')
+        print('--------------------------------------------')
+
+    elif args.mode == 'sound':
+        main_dir = 'data/sound'
+        print('Process pronunciation sound training data...')
+        extract_data_from_sound_dataset(input_dir=main_dir, output_dir=main_dir+'/processed/train')
+        print('Done processing pronunciation sound training data.\n')
+        print('--------------------------------------------')
+        # Process first test set
+        print('Process test data...')   
+        extract_data_from_sound_dataset(input_dir=main_dir, output_dir=main_dir+'/processed/test')
         print('Done processing test data.\n')
         print('--------------------------------------------')

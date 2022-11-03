@@ -51,6 +51,7 @@ coverage.xml
 data/artificial/*
 !data/artificial/.gitkeep 
 data/auslan/*
+data/sound/*
 data/*.txt
 
 # Out file
