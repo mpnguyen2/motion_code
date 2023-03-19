@@ -56,4 +56,7 @@ data/*.txt
 
 # Out file
 out/multiple/*
-!out/multiple/.gitkeep 
+!out/multiple/.gitkeep
+
+# Model files
+saved_models/*

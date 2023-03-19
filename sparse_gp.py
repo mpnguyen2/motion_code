@@ -31,101 +31,11 @@ def jitter(d, value=1e-6):
     return jnp.eye(d)*value
 
 ## Methods for finding kernels from data ##
-def get_param_matrices_from_core_params(Sigma, W):
-    """
-    Returns parameters for pairs of components with shape (num_comp, num_comp, Q) for each motion.
-    Parameters
-    ----------
-    Sigma, Mu, W, Phi, Theta: ndarray
-        Core kernel parameters with shape (num_motion, num_comp, Q)
-    """
-    num_motion = Sigma.shape[0]
-    #num_comp = Sigma.shape[1]
-    #Q = Sigma.shape[2]
-    
-    # Calculate Sigma
-    #Sigma_i = Sigma.reshape(num_motion, num_comp, 1, Q)
-    #Sigma_j = Sigma.reshape(num_motion, 1, num_comp, Q)
-    #Sigma_ij = Sigma.reshape(num_motion, num_comp, num_comp, Q) #2 * Sigma_i * 1.0/(Sigma_i + Sigma_j) * Sigma_j
-
-    # Calculate Mu
-    #Mu_i = Mu.reshape(num_motion, num_comp, 1, Q)
-    #Mu_j = Mu.reshape(num_motion, 1, num_comp, Q)
-    #Mu_ij = 1/(Sigma_i+Sigma_j) * (Mu_i*Sigma_j + Sigma_i*Mu_j)
-
-    # Calculate Alpha
-    #W_i = W.reshape(num_motion, num_comp, 1, Q)
-    #W_j = W.reshape(num_motion, 1, num_comp, Q)
-    #W_ij = W_i * W_j * jnp.exp(-0.25 * (Mu_i-Mu_j) * 1.0/(Sigma_i+Sigma_j) * (Mu_i-Mu_j))
-    #W_ij = W_i * W_j
-    #Alpha_ij = W.reshape(num_motion, num_comp, num_comp, Q) #W_ij * TWO_PI_SQRT * jnp.sqrt(Sigma_ij)
-    
-    # Calculate Theta and Phi
-    #Theta_ij = Theta.reshape(num_motion, num_comp, 1, Q) - Theta.reshape(num_motion, 1, num_comp, Q)
-    #Phi_ij = Phi.reshape(num_motion, num_comp, 1, Q) - Phi.reshape(num_motion, 1, num_comp, Q)
-
-    #return Sigma_ij, Mu_ij, Alpha_ij, Theta_ij, Phi_ij
-    return Sigma.reshape(num_motion, -1), W.reshape(num_motion, -1)
-
-def repeat_param_for_kernel(param, num_x1, num_x2):
-    """
-    Returns repeated parameter over a pair of point sets for vectorization.
-    Returned result has shape (num_comp*num_x1, num_comp*num_x2, Q)
-    
-    Parameters
-    ----------
-    param: has shape (num_comp, num_comp, Q)
-    num_x1, num_x2: number of time variable for X1 and X2
-    """
-    # Repeat parameter num_x1 * num_x2 times and reshape in the form of (num_comp, num_x1, num_comp, num_x2, Q)
-    num_comp = param.shape[0]
-    Q = param.shape[2]
-    repeated_param = jnp.repeat(param.reshape(num_comp, num_comp, Q, 1), num_x1*num_x2, axis=-1)
-    repeated_param = jnp.swapaxes(repeated_param, 2, 3)
-    repeated_param = repeated_param.reshape(num_comp, num_comp, num_x1, num_x2, Q)
-    repeated_param = jnp.swapaxes(repeated_param, 1, 2)
-    
-    return repeated_param.reshape(num_comp, num_x1, num_comp*num_x2, Q).reshape(num_comp*num_x1, num_comp*num_x2, Q)
-
-def spectral_kernel(X1, X2, sigma_ij, alpha_ij):
-    """
-    Returns spectral kernel between two sets of points in X. 
-    For simplicity, we assume points in X is time variable with dim 1
-    
-    Parameters
-    ----------
-    X1, X2: ndarray
-        Two sets of time variables (1D vectors of length n where n is # of data points in timeseries).
-    num_comp: int
-        Number of components of vector-valued Gaussian process
-    sigma_ij, mu_ij, w_ij, phi_ij, theta_ij: ndarray
-        Kernel params of dim (num_comp, num_comp, Q). Here Q = # of components in kernel.
-    """
-    num_x1 = X1.shape[0]
-    num_x2 = X2.shape[0]
-    num_comp = sigma_ij.shape[0]
-    Q = sigma_ij.shape[2]
-
-    # Difference btw X1, X2.
-    X12_no_repeat = X1.reshape(num_x1, 1) - X2.reshape(1, num_x2)
-    X12 = jnp.repeat(X12_no_repeat, (num_comp**2)*Q).reshape(-1, (num_comp**2)*Q).swapaxes(0, 1)
-    X12 = X12.reshape(num_x1, num_x2, num_comp, num_comp, Q)
-    X12 = jnp.swapaxes(X12, 1, 2).reshape(num_x1*num_comp, num_x2, num_comp, Q).reshape(num_x1*num_comp, num_x2*num_comp, Q)
-
-    # kernel parameters that are repeated to allow vectorization.
-    sigma = repeat_param_for_kernel(sigma_ij, num_x1, num_x2)
-    #mu = repeat_param_for_kernel(mu_ij, num_x1, num_x2)
-    alpha = repeat_param_for_kernel(alpha_ij, num_x1, num_x2)
-    #phi = repeat_param_for_kernel(phi_ij, num_x1, num_x2)
-    #theta = repeat_param_for_kernel(theta_ij, num_x1, num_x2)
-
-    return jnp.sum(alpha * jnp.exp(-0.5 * X12 * sigma * X12), axis=-1)
-
-def spectral_kernel2(X1, X2, sigma_ij, alpha_ij):
+def spectral_kernel(X1, X2, sigma, alpha):
     num_x1 = X1.shape[0]
     num_x2 = X2.shape[0]
     X12 = (X1.reshape(num_x1, 1) - X2.reshape(1, num_x2)).reshape(num_x1, num_x2, 1)
-    return jnp.sum(alpha_ij.reshape(1, 1, -1) * jnp.exp(-0.5 * X12 * sigma_ij.reshape(1, 1, -1) * X12), axis=-1)
+    return jnp.sum(alpha.reshape(1, 1, -1) * jnp.exp(-0.5 * X12 * sigma.reshape(1, 1, -1) * X12), axis=-1)
 
 ## Pack/unpack parameters ##
 def pack_params(params):
@@ -143,27 +53,20 @@ def pack_params(params):
 
 def unpack_params(params, dims):
     '''
-    Returns unpacked X_m, Z, Sigma, Mu, W, Phi, Theta
+    Returns unpacked X_m, Z, Sigma, W
     X_m is a pack of inducing point with shape (m, latent_dim)
     Z is all motion codes stacking together with shape (num_motion, latent_dim)
-    (Sigma, Mu, W, Phi, Theta) are kernel params of all motions, each has shape (num_motion, num_comp, Q)    
+    (Sigma, W) are kernel params of all motions, each has shape (num_motion, Q)    
     '''
-    num_motion, num_comp, m, latent_dim, Q = dims
+    num_motion, m, latent_dim, Q = dims
     cnt = 0
     X_m = params[cnt:cnt+m*latent_dim]; cnt += m*latent_dim
     Z = params[cnt:cnt+num_motion*latent_dim]; cnt += num_motion*latent_dim
-    Sigma = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
+    Sigma = params[cnt:cnt+num_motion*Q]; cnt += num_motion**Q
     Sigma = Sigma.reshape(num_motion, Q)
-    #Mu = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
-    #Mu = Mu.reshape(num_motion, num_comp, Q)
-    W = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
+    W = params[cnt:cnt+num_motion*Q]; cnt += num_motion*Q
     W = W.reshape(num_motion, Q)
-    #Phi = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
-    #Phi = Phi.reshape(num_motion, num_comp, Q)
-    #Theta = params[cnt:cnt+num_motion*num_comp*Q]; cnt += num_motion*num_comp*Q
-    #Theta = Theta.reshape(num_motion, num_comp, Q)
-
-    #return jnp.array(X_m).reshape(m, latent_dim), jnp.array(Z).reshape(num_motion, latent_dim), Sigma, Mu, W, Phi, Theta
+  
     return jnp.array(X_m).reshape(m, latent_dim), Z.reshape(num_motion, latent_dim), Sigma, W
 
 ## ELBO functions ##
@@ -190,43 +93,37 @@ def elbo_fn_from_kernel(K_mm, K_mn, y, trace_avg_all_comps, sigma_y):
 
     return -lb[0, 0]
 
-def elbo_fn(X_list, Y_list, indices, sigma_y, dims):
+def elbo_fn(X_list, Y_list, labels, sigma_y, dims):
     """
     Returns ELBO function from a list of timeseries with each timeseries is a specific motion.
     
     Parameters
     ----------
     X_list: A list of timeseries's time variable, whose element has shape (n, ).
-    Y_list: A list of timeseries's target/output variable, whose element has shape (n, num_comp)
+    Y_list: A list of timeseries's target/output variable, whose element has shape (n, )
     Here n is the number of data points in a particular timeseries.
-    indices: map each timeseries to the motion (number) it represents.
+    labels: map each timeseries to the motion (number) it represents.
     sigma_y: Target noise.
-    dims: tuple of (num_motion, num_comp, m=num_inducing_pts, latent_dim)
+    dims: tuple of (num_motion,  m=num_inducing_pts, latent_dim, Q). Recall Q is the number of terms in kernel.
     """
-
-    # m is the number of inducing points
-    _, num_comp, _, _, _ = dims
 
     def elbo(params):
         # X_m is a pack of inducing point with shape (m, latent_dim)
         # Z is all motion codes stacking together with shape (num_motion, latent_dim)
         # Currently, each motion has a separate set of params (sigma, mu, w, phi, theta)
-        # They are stacked in (Sigma, Mu, W, Phi, Theta), with each has shape (num_motion, num_comp, Q)
+        # They are stacked in (Sigma, W), with each has shape (num_motion, num_comp, Q)
         X_m, Z, Sigma, W = unpack_params(params, dims)
         Sigma = softplus(Sigma)
         W = softplus(W)
-        
-        # Get parameters for pairs of components for all motions. Each stacked param has shape (num_motion, num_comp, num_comp, Q)
-        #Sigma_ij, Alpha_ij = get_param_matrices_from_core_params(Sigma, W)
 
         loss = 0
         for i in range(len(X_list)):
-            k = indices[i]  # motion index of current timeseries
+            k = labels[i]  # label of the current timeseries
             X_m_k = sigmoid(X_m@Z[k])
-            K_mm = spectral_kernel2(X_m_k, X_m_k, Sigma[k], W[k]) + jitter(X_m_k.shape[0])
-            K_mn = spectral_kernel2(X_m_k, X_list[i], Sigma[k], W[k])
-            trace_avg_all_comps = jnp.sum(W[k]**2)/num_comp
-            y_n_k = jnp.swapaxes(Y_list[i], 0, 1).reshape(-1, 1) # shape (num_comp*n, 1)
+            K_mm = spectral_kernel(X_m_k, X_m_k, Sigma[k], W[k]) + jitter(X_m_k.shape[0])
+            K_mn = spectral_kernel(X_m_k, X_list[i], Sigma[k], W[k])
+            trace_avg_all_comps = jnp.sum(W[k]**2)
+            y_n_k = Y_list[i].reshape(-1, 1) # shape (n, 1)
             loss += elbo_fn_from_kernel(K_mm, K_mn, y_n_k, trace_avg_all_comps, sigma_y)
         
         return loss/len(X_list)
@@ -241,19 +138,25 @@ def elbo_fn(X_list, Y_list, indices, sigma_y, dims):
 
 ## Predict distribution, mean and covariance methods from trained kernel parameters and inducing pts ##
 @jit
-def phi_opt(X_m, X_list, Y_list, sigma_y, kernel_params_ij):
+def phi_opt(X_m, X_list, Y_list, sigma_y, kernel_params):
     """
     Find optimal mu_m and A_m: approximate distribution params for f_m.
     Note that mu_m and A_m are for a single motion with all timeseries data corresponding to that motion.
+    
+    Parameters
+    ----------
+    X_m: inducing points of one motion
+    X_list: A list of timeseries's time variables for this motion
+    Y_list: A list of timeseries's target variable for this motion
+    kernel_params: kernel parameters for gaussian approx of this motion
     """
-    #sigma_ij, mu_ij, alpha_ij, theta_ij, phi_ij = kernel_params_ij
-    sigma_ij, alpha_ij= kernel_params_ij
+    sigma, alpha= kernel_params
 
     precision = 1.0/(sigma_y**2)
     B = len(X_list)
 
     # Get K_mm and its inverse
-    K_mm = spectral_kernel2(X_m, X_m, sigma_ij, alpha_ij)\
+    K_mm = spectral_kernel(X_m, X_m, sigma, alpha)\
         + jitter(X_m.shape[0])
     K_mm_inv = jnp.linalg.inv(K_mm)
     
@@ -261,7 +164,7 @@ def phi_opt(X_m, X_list, Y_list, sigma_y, kernel_params_ij):
     K_nm_list = []
     K_mn_list = []
     for j in range(B):
-        K_nm_list.append(spectral_kernel2(X_list[j], X_m, sigma_ij, alpha_ij))
+        K_nm_list.append(spectral_kernel(X_list[j], X_m, sigma, alpha))
         K_mn_list.append(K_nm_list[j].T)
 
     # Get Sigma in mean and variance formulas
@@ -275,22 +178,22 @@ def phi_opt(X_m, X_list, Y_list, sigma_y, kernel_params_ij):
     A_m = K_mm @ Sigma @ K_mm
 
     # Calculate mean
-    y_n = jnp.swapaxes(Y_list[0], 0, 1).reshape(-1)
+    y_n = Y_list[0]
     mu_m = (factor @ K_mn_list[0]).dot(y_n)
     for j in range(1, B):
-        y_n = jnp.swapaxes(Y_list[j], 0, 1).reshape(-1)
+        y_n = Y_list[j]
         mu_m += (factor @ K_mn_list[j]).dot(y_n)
 
     return mu_m, A_m, K_mm_inv
 
 @jit
-def q(X_test, X_m, kernel_params_ij, mu_m, A_m, K_mm_inv):
+def q(X_test, X_m, kernel_params, mu_m, A_m, K_mm_inv):
     """
     Distribution prediction for a new collection of time variables
     """
-    sigma_ij, alpha_ij = kernel_params_ij
-    K_ss = spectral_kernel2(X_test, X_test, sigma_ij, alpha_ij)
-    K_sm = spectral_kernel2(X_test, X_m, sigma_ij, alpha_ij)
+    sigma, alpha = kernel_params
+    K_ss = spectral_kernel(X_test, X_test, sigma, alpha)
+    K_sm = spectral_kernel(X_test, X_m, sigma, alpha)
     K_ms = K_sm.T
 
     f_q = (K_sm @ K_mm_inv).dot(mu_m)
@@ -298,18 +201,17 @@ def q(X_test, X_m, kernel_params_ij, mu_m, A_m, K_mm_inv):
 
     return f_q, f_q_cov
 
-def simple_predict(X_test, Y_test, kernel_params_ijs, X_m, Z, mu_ms, A_ms, K_mm_invs):
+def simple_predict(X_test, Y_test, kernel_params_all_motions, X_m, Z, mu_ms, A_ms, K_mm_invs):
     """
     Simple predict using argmin of negative log-likelihood over all possible classes
     """
-    num_motion = len(kernel_params_ijs)
+    num_motion = len(kernel_params_all_motions)
     ind = -1; min_ll = 1e9
-    y_test = jnp.swapaxes(Y_test, 0, 1).reshape(-1)
     for k in range(num_motion):
         # Calculate likelihood conditioned on motion type k
-        mean, _ = q(X_test, sigmoid(X_m @ Z[k]), kernel_params_ijs[k], mu_ms[k], A_ms[k], K_mm_invs[k])
+        mean, _ = q(X_test, sigmoid(X_m @ Z[k]), kernel_params_all_motions[k], mu_ms[k], A_ms[k], K_mm_invs[k])
         #ll = jnp.log(jnp.linalg.det(covar)) + ((y_test-mean).T)@jnp.linalg.inv(covar)@(y_test-mean)
-        ll = ((y_test-mean).T)@(y_test-mean)
+        ll = ((Y_test-mean).T)@(Y_test-mean)
         if ind == -1:
             ind = k; min_ll = ll
         elif min_ll > ll: 
