@@ -51,6 +51,15 @@ def pack_params(params):
         flatten.extend(p.reshape(-1))
     return np.array(flatten)
 
+def unpack_params_single(params, dims):
+    m, Q = dims
+    cnt = 0
+    X_m = params[cnt:cnt+m]; cnt += m
+    Sigma = params[cnt:cnt+Q]; cnt += Q
+    W = params[cnt:cnt+Q]; cnt += Q
+
+    return jnp.array(X_m).reshape(m),  Sigma, W
+
 def unpack_params(params, dims):
     '''
     Returns unpacked X_m, Z, Sigma, W
@@ -62,7 +71,7 @@ def unpack_params(params, dims):
     cnt = 0
     X_m = params[cnt:cnt+m*latent_dim]; cnt += m*latent_dim
     Z = params[cnt:cnt+num_motion*latent_dim]; cnt += num_motion*latent_dim
-    Sigma = params[cnt:cnt+num_motion*Q]; cnt += num_motion**Q
+    Sigma = params[cnt:cnt+num_motion*Q]; cnt += num_motion*Q
     Sigma = Sigma.reshape(num_motion, Q)
     W = params[cnt:cnt+num_motion*Q]; cnt += num_motion*Q
     W = W.reshape(num_motion, Q)
@@ -92,6 +101,37 @@ def elbo_fn_from_kernel(K_mm, K_mn, y, trace_avg_all_comps, sigma_y):
     lb += 0.5 * jnp.trace(AAT)
 
     return -lb[0, 0]
+
+def elbo_fn_single(X, Y, sigma_y, dims):
+    """
+    Returns ELBO function for a single time series.
+    
+    Parameters
+    ----------
+    X: Timeseries's time variable
+    Y: Timeseries's target/output variable
+    dims = (m, Q)
+    """
+
+    def elbo(params):
+        # X_m is inducing pt (m, ), Sigma, W are kernel parameters of shape Q
+        X_m, Sigma, W = unpack_params_single(params, dims)
+        Sigma = softplus(Sigma)
+        W = softplus(W)
+        K_mm = spectral_kernel(X_m, X_m, Sigma, W) + jitter(X_m.shape[0])
+        K_mn = spectral_kernel(X_m, X, Sigma, W)
+        trace_avg_all_comps = jnp.sum(W**2)
+        y_n_k = Y.reshape(-1, 1)
+        
+        return elbo_fn_from_kernel(K_mm, K_mn, y_n_k, trace_avg_all_comps, sigma_y)
+
+    elbo_grad = jit(value_and_grad(elbo))
+
+    def elbo_grad_wrapper(params):
+        value, grads = elbo_grad(params)
+        return np.array(value), np.array(grads)
+
+    return elbo_grad_wrapper
 
 def elbo_fn(X_list, Y_list, labels, sigma_y, dims):
     """
@@ -200,21 +240,3 @@ def q(X_test, X_m, kernel_params, mu_m, A_m, K_mm_inv):
     f_q_cov = K_ss - K_sm @ K_mm_inv @ K_ms + K_sm @ K_mm_inv @ A_m @ K_mm_inv @ K_ms
 
     return f_q, f_q_cov
-
-def simple_predict(X_test, Y_test, kernel_params_all_motions, X_m, Z, mu_ms, A_ms, K_mm_invs):
-    """
-    Simple predict using argmin of negative log-likelihood over all possible classes
-    """
-    num_motion = len(kernel_params_all_motions)
-    ind = -1; min_ll = 1e9
-    for k in range(num_motion):
-        # Calculate likelihood conditioned on motion type k
-        mean, _ = q(X_test, sigmoid(X_m @ Z[k]), kernel_params_all_motions[k], mu_ms[k], A_ms[k], K_mm_invs[k])
-        #ll = jnp.log(jnp.linalg.det(covar)) + ((y_test-mean).T)@jnp.linalg.inv(covar)@(y_test-mean)
-        ll = ((Y_test-mean).T)@(Y_test-mean)
-        if ind == -1:
-            ind = k; min_ll = ll
-        elif min_ll > ll: 
-            ind = k; min_ll = ll
-    
-    return ind

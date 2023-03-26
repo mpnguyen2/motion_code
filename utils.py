@@ -40,6 +40,9 @@ def accuracy(pred, gt):
     """
     return np.sum(np.array(pred)==np.array(gt))/len(pred)
 
+def RMSE(pred, gt):
+    return np.sqrt(np.mean((pred-gt)**2))
+
 def F_score(pred, gt, num_class):
     """
     Multi-class F-score: TBA

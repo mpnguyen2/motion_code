@@ -1,7 +1,5 @@
-import pickle
 import numpy as np
 from utils import *
-import argparse
 import scipy.io.wavfile as wavfile
 from sktime.datasets import load_UCR_UEA_dataset
 
@@ -11,49 +9,31 @@ COLOR_LIST = ['red', 'blue', 'green', 'yellow', 'black', 'orange', 'brown', 'gre
 def clear():
     os.system('clear')
 
-def load_UCR_UEA_data(name, mode='train', visualize=False):
-    Y, labels= load_UCR_UEA_dataset(name=name, split=mode, return_X_y=True, return_type="numpy3d")
-    try:
-        labels = np.array(labels, dtype=int)
-        labels -= 1
-    except:
-        return -1, np.array([]), np.array([]), np.array([])
-    Y = Y[:, 0, :]
-    num_samples = Y.shape[0]; seq_len = Y.shape[1]
-    X = np.tile(np.linspace(0, 1, seq_len), (num_samples, 1))
-    # Visualization
-    if visualize:
-        for i in range(num_samples):
-            plt.plot(X[i], Y[i], color=COLOR_LIST[int(labels[i])])
-        plt.show()
-    return num_samples, X, Y, labels
-
-def save_data(X, Y, labels, data_path):
-    return np.savez(data_path, X=X, Y=Y, labels=labels)  
-
 ## Sound dataset ##
 def read_sound_timeseries(file_name, down_sampling_rate=100):
-    samplerate, data = wavfile.read(file_name)
-    duration = len(data)/samplerate
-    time = np.arange(0, 1, 1/(duration*samplerate))
+    sample_rate, data = wavfile.read(file_name)
+    duration = len(data)/sample_rate
+    time = np.arange(0, 1, 1/(duration*sample_rate))
     intervals = np.array(np.arange(0, len(time), len(time)/down_sampling_rate), dtype=int)
-    time = time[intervals]; data = data[intervals]
+    intervals = intervals[:down_sampling_rate]
+    data = data[intervals]
     data = np.abs(data)/np.max(np.abs(data))
-    return time, data
+    return data
 
-def extract_data_from_sound_dataset(input_dir, output_dir):
+def generate_data_from_sound_dataset(input_dir):
     cur_label = 0
+    Y, labels = [], []
     for single_dir in os.scandir(input_dir):
-        if not single_dir.is_dir() or single_dir.name == 'processed':
+        if not single_dir.is_dir():
             continue
-        X, Y, labels = [], [], []
         for sound_file in os.scandir(single_dir):
             # Read current timeseries
-            time, data = read_sound_timeseries(sound_file)
-            X.append(time), Y.append(data), labels.append(cur_label)
+            data = read_sound_timeseries(sound_file)
+            Y.append(data) 
+            labels.append(cur_label)
         cur_label += 1
-    X, Y, labels = np.array(X), np.array(Y), np.array(labels)
-    save_data(X, Y, labels, output_dir)
+    Y, labels = np.array(Y, dtype=float), np.array(labels, dtype=int)
+    return Y.reshape(Y.shape[0], 1, Y.shape[1]), labels+1
 
 ## Synthetic data ##
 def func_factory(coef, arg):
@@ -61,15 +41,66 @@ def func_factory(coef, arg):
         return coef[0] * np.sin(x * arg[0] * np.pi) + coef[1] * np.cos(x * arg[1] * np.pi) +  coef[2] * np.sin(x * arg[2] * np.pi) 
     return func
 
-def generate_synthetic_data(funcs, output_dir, num_samples_all=[20, 20, 20], seq_len=10, sigma=0.1):
-    num_type = num_samples_all.shape[0]
-    num_samples = np.sum(num_samples_all)
+def generate_synthetic_data(num_samples=np.array([20, 20, 20]), seq_len=10, sigma=0.1): 
     base_X = np.linspace(0, 1, seq_len)
-    X = np.tile(base_X, (num_samples, 1))
 
-    Y = np.random.normal(size=num_samples_all[0]) * sigma
-    labels = np.zeros * num_samples_all[0]
-    for l in range(1, num_type):
-        Y = np.concatenate((Y,  funcs[l](base_X) + np.random.normal(size=num_samples_all[l]) * sigma), axis=0)
+    func1 = func_factory([1.0, 0.3, 0.5], [3, 9, 7])
+    func2 = func_factory([0.1, 1, -0.1], [1.5, 6, 7])
+    func3 = func_factory([0.5, -1,  0.6], [4.5, 2.5, 9])
+    funcs = [func1, func2, func3]
 
-    save_data(X, Y, labels, output_dir)
+    Y = []; labels = []
+    for l in range(0, 3):
+        start_ind = 0 if l != 0 else 1
+        for _ in range(start_ind, num_samples[l]):
+            Y.append(funcs[l](base_X) + np.random.normal(size=seq_len) * sigma)
+            labels.append(l)
+
+    Y = np.array(Y); labels = np.array(labels)
+    return Y.reshape(Y.shape[0], 1, Y.shape[1]), labels+1
+
+# Load datasets: 
+# a set of synthetic data and another set of audio data.
+def load_data(name, split='train', add_noise=False):
+    '''
+    Returns time series data together with corresponding labels. 
+    Note we are considering different motions or collections of time series.
+    
+    Parameters
+    ----------
+    name: Name of the data set
+    split: either train or test data
+    '''
+    if name == 'Synthetic':
+        if split == 'train':
+            Y, labels = generate_synthetic_data(num_samples=[30, 30, 30], seq_len=500, sigma=0.1)
+        elif split == 'test':
+            Y, labels = generate_synthetic_data(num_samples=[20, 20, 20], seq_len=500, sigma=0.1)
+    elif name == 'Sound':
+        Y, labels = generate_data_from_sound_dataset(input_dir='data/sound')
+    else:
+        Y, labels= load_UCR_UEA_dataset(name=name, split=split, return_X_y=True, return_type="numpy3d")
+    if add_noise:
+        Y += np.random.normal(size=Y.shape) * 0.3 * np.max(np.abs(Y))
+    return Y, labels
+
+def add_time_variable(Y, labels, visualize=False):
+    '''
+    Add the time variable X. Reformat labels to zero-indexed. Optinally allow visualize data.
+    '''
+    try:
+        labels = np.array(labels, dtype=int)
+        labels -= 1
+    except:
+        return np.array([]), np.array([]), np.array([])
+    Y = Y[:, 0, :]
+    num_samples = Y.shape[0]; seq_len = Y.shape[1]
+    X = np.tile(np.linspace(0, 1, seq_len), (num_samples, 1))
+
+    # Optional visualization
+    if visualize:
+        for i in range(num_samples):
+            plt.plot(X[i], Y[i], color=COLOR_LIST[int(labels[i])])
+        plt.show()
+
+    return X, Y, labels

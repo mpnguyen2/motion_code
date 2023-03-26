@@ -60,3 +60,6 @@ out/multiple/*
 
 # Model files
 saved_models/*
+
+# Log files
+logs/*
