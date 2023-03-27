@@ -67,8 +67,10 @@ if __name__ == '__main__':
     parser.add_argument('--forecast', type=bool, default=False, help='Type of benchmarks: either classify or forecast')
     args = parser.parse_args()
 
-    datasets = ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'FreezerSmallTrain', 'GunPointOldVersusYoung', 'ERing']
-    # 'ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'FreezerSmallTrain', 'GunPointOldVersusYoung', 'ERing'
+    datasets = ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
+                'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll']
+    # 'ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
+    # 'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll'
     
     if args.forecast:
         all_forecasters = [(NaiveForecaster(strategy="last", sp=12), 'naive'),

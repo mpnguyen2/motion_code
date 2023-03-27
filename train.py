@@ -69,7 +69,8 @@ if __name__ == '__main__':
                        latent_dim=args.motion_code_dim, sigma_y=args.sigma_y)
 
     # Run model on all datasets and either classify or forecast testsets.
-    datasets = ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'FreezerSmallTrain', 'GunPointOldVersusYoung', 'ERing']
+    datasets = ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
+                'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll']
     for name in datasets:
         start_time = time.time()
         err = run_motion_code_on(model, name, forecast=args.forecast)
