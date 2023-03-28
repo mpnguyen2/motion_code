@@ -70,7 +70,12 @@ if __name__ == '__main__':
 
     # Run model on all datasets and either classify or forecast testsets.
     datasets = ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
-                'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll']
+                'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain']
+    '''
+    'ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
+    'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll',
+    'Earthquakes', 'Lightning7', 'ACSF1', 'HouseTwenty', 'DodgerLoopDay', 'Chinatown', 'InsectEPGRegularTrain'
+    '''
     for name in datasets:
         start_time = time.time()
         err = run_motion_code_on(model, name, forecast=args.forecast)

@@ -5,19 +5,22 @@ import pandas as pd
 import warnings
 warnings.filterwarnings("ignore")
 
-from sktime.classification.dictionary_based import IndividualBOSS
-from sktime.classification.interval_based import RandomIntervalSpectralEnsemble
-from sktime.classification.kernel_based import TimeSeriesSVC
+from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
+from sktime.classification.dictionary_based import IndividualBOSS, BOSSEnsemble
+from sktime.classification.interval_based import RandomIntervalSpectralEnsemble, TimeSeriesForestClassifier
 from sklearn.gaussian_process.kernels import RBF
 from sktime.dists_kernels import AggrDist
+from sktime.classification.kernel_based import TimeSeriesSVC, RocketClassifier
 from sktime.classification.early_classification import TEASER
 from sktime.classification.feature_based import Catch22Classifier
-
+from sktime.classification.shapelet_based import ShapeletTransformClassifier
+from sktime.classification.sklearn import RotationForest
+from sktime.classification.hybrid import HIVECOTEV2
+from sktime.classification.deep_learning import LSTMFCNClassifier
 
 from sktime.forecasting.naive import NaiveForecaster
 from sktime.forecasting.arima import ARIMA
 from sktime.forecasting.exp_smoothing import ExponentialSmoothing
-
 # from sktime.forecasting.ets import AutoETS
 from sktime.forecasting.structural import UnobservedComponents
 
@@ -68,21 +71,25 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     datasets = ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
-                'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll']
-    # 'ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
-    # 'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll'
-    
+                'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain']
+    '''
+    'ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
+    'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll',
+    'Earthquakes', 'Lightning7', 'ACSF1', 'HouseTwenty', 'DodgerLoopDay', 'Chinatown', 'InsectEPGRegularTrain'
+    '''
     if args.forecast:
         all_forecasters = [(NaiveForecaster(strategy="last", sp=12), 'naive'),
                            (ExponentialSmoothing(trend="add", seasonal="additive", sp=12), 'Exponential Smoothing'),
                            (ARIMA(order=(1, 1, 0), seasonal_order=(0, 1, 0, 12), suppress_warnings=True), 'ARIMA'),
                            (UnobservedComponents(level="local linear trend", freq_seasonal=[{"period": 12, "harmonics": 10}]), 'State-space')]
-        # (NaiveForecaster(strategy="last", sp=12), 'naive')
-        # (ExponentialSmoothing(trend="add", seasonal="additive", sp=12), 'Exponential Smoothing')
-        # (ARIMA(order=(1, 1, 0), seasonal_order=(0, 1, 0, 12), suppress_warnings=True), 'ARIMA')
-        # (AutoARIMA(sp=12, suppress_warnings=True), 'Auto-ARIMA')
-        # (UnobservedComponents(level="local linear trend", freq_seasonal=[{"period": 12, "harmonics": 10}]), 'State-space')
-        # (AutoETS(auto=True, sp=12, n_jobs=-1), 'Auto-ETS')
+        '''
+        (NaiveForecaster(strategy="last", sp=12), 'naive'),
+        (ExponentialSmoothing(trend="add", seasonal="additive", sp=12), 'Exponential Smoothing'),
+        (ARIMA(order=(1, 1, 0), seasonal_order=(0, 1, 0, 12), suppress_warnings=True), 'ARIMA'),
+        (AutoARIMA(sp=12, suppress_warnings=True), 'Auto-ARIMA'),
+        (UnobservedComponents(level="local linear trend", freq_seasonal=[{"period": 12, "harmonics": 10}]), 'State-space'),
+        (AutoETS(auto=True, sp=12, n_jobs=-1), 'Auto-ETS'),
+        '''
         for forecaster, forecaster_name in all_forecasters:
             print(forecaster_name)
             for name in datasets:
@@ -92,13 +99,30 @@ if __name__ == '__main__':
                     print(name + ': -1')
             print('\n')
     else:
-        mean_gaussian_tskernel = AggrDist(RBF()) 
-        all_clfs = [(RandomIntervalSpectralEnsemble(), "RISE"), 
-                    (Catch22Classifier(), "catch22"), (TEASER(), "Teaser"), (IndividualBOSS(), "BOSS"), 
-                    (TimeSeriesSVC(kernel=mean_gaussian_tskernel), "SVC")]
-        # (Catch22Classifier(), "catch22"), (TEASER(), "Teaser"), (IndividualBOSS(), "BOSS")
-        # mean_gaussian_tskernel = AggrDist(RBF()) (TimeSeriesSVC(kernel=mean_gaussian_tskernel), "SVC")
-        # (RandomIntervalSpectralEnsemble(), "RISE")]
+        all_clfs = [(TimeSeriesForestClassifier(n_estimators=5), "TSF"),
+                    (KNeighborsTimeSeriesClassifier(distance="dtw"), "DTW"),
+                    (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2"),
+                    (RocketClassifier(num_kernels=500), "Rocket"),
+                    (LSTMFCNClassifier(n_epochs=200, verbose=0), "LSTM-FCN"),
+                    (BOSSEnsemble(max_ensemble_size=3), "BOSS-E")
+                    ]
+        '''
+        (KNeighborsTimeSeriesClassifier(distance="dtw"), "DTW"),
+        (Catch22Classifier(), "catch22"), 
+        (TEASER(), "Teaser"), 
+        (IndividualBOSS(), "BOSS"),
+        mean_gaussian_tskernel = AggrDist(RBF()) (TimeSeriesSVC(kernel=mean_gaussian_tskernel), "SVC"),
+        (RandomIntervalSpectralEnsemble(), "RISE"),
+        (ElasticEnsemble(proportion_of_param_options=0.1, proportion_train_for_test=0.1, 
+                        distance_measures = ["dtw","ddtw"], majority_vote=True), "EE"),
+        (BOSSEnsemble(max_ensemble_size=3), "BOSS-E"),
+        (TimeSeriesForestClassifier(n_estimators=5), "TSF"),
+        (RocketClassifier(num_kernels=500), "Rocket"),
+        (ShapeletTransformClassifier(estimator=RotationForest(n_estimators=3), 
+            n_shapelet_samples=100, max_shapelets=10, batch_size=20), "Shapelet"),
+        (LSTMFCNClassifier(n_epochs=200, verbose=0), "LSTM-FCN"),
+        (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2"),
+        '''
 
         for clf, clf_name in all_clfs:
             print(clf_name)
