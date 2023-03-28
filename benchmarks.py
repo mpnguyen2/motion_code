@@ -26,17 +26,18 @@ from sktime.forecasting.structural import UnobservedComponents
 
 from preprocessing import load_data, add_time_variable
 from utils import RMSE
+from train import MotionCode, motion_code_classify
 
-def test_classify(clf, name):
-    X_train, y_train = load_data(name, split='train', add_noise=True)
-    X_test, y_test = load_data(name, split='test', add_noise=True)
+def test_classify(clf, X_train, y_train, X_test, y_test, name=""):
+    if clf_name == 'Motion code':
+        return motion_code_classify(clf, name, X_train, y_train, X_test, y_test)
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
     if type(y_pred) is tuple:
         y_pred, _ = y_pred
     return np.sum(y_pred == y_test)/y_pred.shape[0]
 
-def test_forecast(forecaster, forecaster_name, name, percentage):
+def test_forecast(forecaster, name, percentage):
     # Get train/test data: collection instead of a single time series
     Y, labels = load_data(name, split='train')
     _, Y, labels = add_time_variable(Y, labels)
@@ -70,7 +71,7 @@ if __name__ == '__main__':
     parser.add_argument('--forecast', type=bool, default=False, help='Type of benchmarks: either classify or forecast')
     args = parser.parse_args()
 
-    datasets = ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
+    datasets = ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays', 
                 'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain']
     '''
     'ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
@@ -78,6 +79,7 @@ if __name__ == '__main__':
     'Earthquakes', 'Lightning7', 'ACSF1', 'HouseTwenty', 'DodgerLoopDay', 'Chinatown', 'InsectEPGRegularTrain'
     '''
     if args.forecast:
+        # Work with original versions of data.
         all_forecasters = [(NaiveForecaster(strategy="last", sp=12), 'naive'),
                            (ExponentialSmoothing(trend="add", seasonal="additive", sp=12), 'Exponential Smoothing'),
                            (ARIMA(order=(1, 1, 0), seasonal_order=(0, 1, 0, 12), suppress_warnings=True), 'ARIMA'),
@@ -99,14 +101,32 @@ if __name__ == '__main__':
                     print(name + ': -1')
             print('\n')
     else:
-        all_clfs = [(TimeSeriesForestClassifier(n_estimators=5), "TSF"),
+        # Load noisy versions of data.
+        noisy_data = {}
+        for name in datasets:
+            X_train, y_train = load_data(name, split='train', add_noise=True)
+            X_test, y_test = load_data(name, split='test', add_noise=True)
+            noisy_data[name] = (X_train, y_train, X_test, y_test)
+        
+        # All classifers for bechmarks
+        mean_gaussian_tskernel = AggrDist(RBF()) 
+        all_clfs = [(MotionCode(), "Motion code"), 
                     (KNeighborsTimeSeriesClassifier(distance="dtw"), "DTW"),
+                    (TimeSeriesForestClassifier(n_estimators=5), "TSF"),
+                    (RandomIntervalSpectralEnsemble(), "RISE"),
+                    (IndividualBOSS(), "BOSS"),
                     (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2"),
                     (RocketClassifier(num_kernels=500), "Rocket"),
+                    (TEASER(), "Teaser"),
+                    (Catch22Classifier(), "catch22"), 
                     (LSTMFCNClassifier(n_epochs=200, verbose=0), "LSTM-FCN"),
+                    (TimeSeriesSVC(kernel=mean_gaussian_tskernel), "SVC"),
+                    (ShapeletTransformClassifier(estimator=RotationForest(n_estimators=3), 
+                        n_shapelet_samples=100, max_shapelets=10, batch_size=20), "Shapelet"),
                     (BOSSEnsemble(max_ensemble_size=3), "BOSS-E")
                     ]
         '''
+        (MotionCode(), "Motion code"),
         (KNeighborsTimeSeriesClassifier(distance="dtw"), "DTW"),
         (Catch22Classifier(), "catch22"), 
         (TEASER(), "Teaser"), 
@@ -124,11 +144,13 @@ if __name__ == '__main__':
         (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2"),
         '''
 
+        # Run classifers.
         for clf, clf_name in all_clfs:
             print(clf_name)
             for name in datasets:
+                X_train, y_train, X_test, y_test = noisy_data[name]
                 try:
-                    print(name + ': ' + str(test_classify(clf, name)))
-                except:
+                    print(name + ': ' + str(test_classify(clf, X_train, y_train, X_test, y_test, name)))
+                except: 
                     print(name + ': -1')
             print('\n')

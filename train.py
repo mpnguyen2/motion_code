@@ -5,7 +5,7 @@ from train_utils import train, test_classify, test_forecast
 from preprocessing import load_data, add_time_variable
 
 class MotionCode:
-    def __init__(self, m, Q, latent_dim, sigma_y):
+    def __init__(self, m=10, Q=1, latent_dim=2, sigma_y=0.1):
         self.m = m # Num inducing pts
         self.Q = Q # Num of kernel components
         self.latent_dim = latent_dim # Dim of motion code
@@ -22,37 +22,35 @@ class MotionCode:
     def forecast_predict(self, X_test, Y_test_list, labels_test):
         return test_forecast(self.model_path, X_test, Y_test_list, labels_test)
 
-def run_motion_code_on(model, name, forecast=False):
-    # Train and test
-    if not forecast:
-        # Classify mode: Run on data with 0.3-Gaussian-noise.
-        Y_train, labels_train = load_data(name, split='train', add_noise=True)
-        X_train, Y_train, labels_train = add_time_variable(Y_train, labels_train)
-        model_path = 'saved_models/' + name + '_classify'
-        model.fit(X_train, Y_train, labels_train, model_path)
-        Y_test, labels_test = load_data(name, split='test', add_noise=True)
-        X_test, Y_test, labels_test = add_time_variable(Y_test, labels_test)
-        err = model.classify_predict(X_test, Y_test, labels_test)
-        return err
-    else:      
-        # Train/test for forecasting on the training set but split on time horizon
-        Y_train, labels_train = load_data(name, split='train')
-        X, Y, labels = add_time_variable(Y_train, labels_train)
-        
-        # Split train/test wrt time horizon
-        seq_length = Y.shape[1]
-        train_num_steps = int(args.percentage*seq_length)
-        Y_train = Y[:, :train_num_steps]
-        Y_test = Y[:, train_num_steps:]
-        X_train = X[:, :train_num_steps]
-        X_test = X[:, train_num_steps:]
+def motion_code_classify(model, name, Y_train, labels_train, Y_test, labels_test):
+    # Train
+    X_train, Y_train, labels_train = add_time_variable(Y_train, labels_train)
+    model_path = 'saved_models/' + name + '_classify'
+    model.fit(X_train, Y_train, labels_train, model_path)
+    # Test
+    X_test, Y_test, labels_test = add_time_variable(Y_test, labels_test)
+    err = model.classify_predict(X_test, Y_test, labels_test)
+    return err
 
-        # Train/test
-        model_path = 'saved_models/' + name + '_forecast'
-        model.fit(X_train, Y_train, labels, model_path)
-        err = model.forecast_predict(X_test[0], Y_test, labels)
+def motion_code_forecast(model, name):
+    # Train/test for forecasting on the training set but split on time horizon
+    Y_train, labels_train = load_data(name, split='train')
+    X, Y, labels = add_time_variable(Y_train, labels_train)
+    
+    # Split train/test wrt time horizon
+    seq_length = Y.shape[1]
+    train_num_steps = int(args.percentage*seq_length)
+    Y_train = Y[:, :train_num_steps]
+    Y_test = Y[:, train_num_steps:]
+    X_train = X[:, :train_num_steps]
+    X_test = X[:, train_num_steps:]
 
-        return err
+    # Train/test
+    model_path = 'saved_models/' + name + '_forecast'
+    model.fit(X_train, Y_train, labels, model_path)
+    err = model.forecast_predict(X_test[0], Y_test, labels)
+
+    return err
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='CLI arguments')
@@ -60,7 +58,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_kernel_comps', type=int, default=1, help='Number of components for kernel')
     parser.add_argument('--motion_code_dim', type=int, default=2, help='Dimension of motion code')
     parser.add_argument('--sigma_y', type=float, default=0.1, help='Noise variance for target variable')
-    parser.add_argument('--forecast', type=bool, default=False, help='Whether to use model for forecasting or classification')
+    parser.add_argument('--forecast', type=bool, default=True, help='Whether to use model for forecasting or classification')
     parser.add_argument('--percentage', type=float, default=.8, help='Split percentage for train/test forecasting')
     args = parser.parse_args()
 
@@ -78,5 +76,10 @@ if __name__ == '__main__':
     '''
     for name in datasets:
         start_time = time.time()
-        err = run_motion_code_on(model, name, forecast=args.forecast)
+        if args.forecast:
+            err = motion_code_forecast(model, name)
+        else:
+            Y_train, labels_train = load_data(name, split='train', add_noise=True)
+            Y_test, labels_test = load_data(name, split='test', add_noise=True)
+            err = motion_code_classify(model, name, Y_train, labels_train, Y_test, labels_test)
         print(name +': ' + str(err) + '. Take %.2f seconds' % (time.time()-start_time))
