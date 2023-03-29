@@ -5,6 +5,9 @@ import pandas as pd
 import warnings
 warnings.filterwarnings("ignore")
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+
 from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
 from sktime.classification.dictionary_based import IndividualBOSS, BOSSEnsemble
 from sktime.classification.interval_based import RandomIntervalSpectralEnsemble, TimeSeriesForestClassifier
@@ -69,10 +72,11 @@ def test_forecast(forecaster, name, percentage):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='CLI arguments')
     parser.add_argument('--forecast', type=bool, default=False, help='Type of benchmarks: either classify or forecast')
+    parser.add_argument('--load_existing_data', type=bool, default=False, help='Load saved noisy data')
     args = parser.parse_args()
 
-    datasets = ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays', 
-                'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain']
+    datasets = ['ItalyPowerDemand'] #, 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays', 
+                #'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain']
     '''
     'ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
     'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll',
@@ -104,27 +108,36 @@ if __name__ == '__main__':
         # Load noisy versions of data.
         noisy_data = {}
         for name in datasets:
-            X_train, y_train = load_data(name, split='train', add_noise=True)
-            X_test, y_test = load_data(name, split='test', add_noise=True)
+            data_path = 'data/noisy/' + name
+            if args.load_existing_data:
+                data = np.load(data_path + '.npy', allow_pickle=True).item()
+                X_train, y_train = data.get('X_train'), data.get('y_train')
+                X_test, y_test = data.get('X_test'), data.get('y_test')
+            else:
+                X_train, y_train = load_data(name, split='train', add_noise=True)
+                X_test, y_test = load_data(name, split='test', add_noise=True)
+                np.save(data_path, {'X_train': X_train, 'y_train': y_train, 'X_test': X_test, 'y_test': y_test})
+            
             noisy_data[name] = (X_train, y_train, X_test, y_test)
         
         # All classifers for bechmarks
         mean_gaussian_tskernel = AggrDist(RBF()) 
-        all_clfs = [(MotionCode(), "Motion code"), 
-                    (KNeighborsTimeSeriesClassifier(distance="dtw"), "DTW"),
+        all_clfs = [(KNeighborsTimeSeriesClassifier(distance="dtw"), "DTW"),
                     (TimeSeriesForestClassifier(n_estimators=5), "TSF"),
                     (RandomIntervalSpectralEnsemble(), "RISE"),
                     (IndividualBOSS(), "BOSS"),
-                    (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2"),
-                    (RocketClassifier(num_kernels=500), "Rocket"),
-                    (TEASER(), "Teaser"),
+                    (BOSSEnsemble(max_ensemble_size=3), "BOSS-E"),
                     (Catch22Classifier(), "catch22"), 
-                    (LSTMFCNClassifier(n_epochs=200, verbose=0), "LSTM-FCN"),
-                    (TimeSeriesSVC(kernel=mean_gaussian_tskernel), "SVC"),
                     (ShapeletTransformClassifier(estimator=RotationForest(n_estimators=3), 
                         n_shapelet_samples=100, max_shapelets=10, batch_size=20), "Shapelet"),
-                    (BOSSEnsemble(max_ensemble_size=3), "BOSS-E")
-                    ]
+                    (TEASER(), "Teaser"),
+                    (TimeSeriesSVC(kernel=mean_gaussian_tskernel), "SVC"),
+                    (LSTMFCNClassifier(n_epochs=200, verbose=0), "LSTM-FCN"),
+                    (RocketClassifier(num_kernels=500), "Rocket"),
+                    (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2"),
+                    (MotionCode(), "Motion code"),
+        ]
+
         '''
         (MotionCode(), "Motion code"),
         (KNeighborsTimeSeriesClassifier(distance="dtw"), "DTW"),
@@ -145,12 +158,19 @@ if __name__ == '__main__':
         '''
 
         # Run classifers.
+        result = {}
         for clf, clf_name in all_clfs:
             print(clf_name)
+            result[clf_name] = []
             for name in datasets:
-                X_train, y_train, X_test, y_test = noisy_data[name]
                 try:
-                    print(name + ': ' + str(test_classify(clf, X_train, y_train, X_test, y_test, name)))
-                except: 
+                    X_train, y_train, X_test, y_test = noisy_data[name]
+                    err = test_classify(clf, X_train, y_train, X_test, y_test, name)
+                    print(name + ': ' + str(err))
+                    result[clf_name].append(err)
+                except:
                     print(name + ': -1')
+                    result[clf_name].append(-1)
             print('\n')
+
+        pd.DataFrame(result, index=datasets).to_csv('out/classify_errors.csv')

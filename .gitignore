@@ -48,15 +48,10 @@ coverage.xml
 *.exe
 
 # Data files
-data/artificial/*
-!data/artificial/.gitkeep 
-data/auslan/*
 data/sound/*
-data/*.txt
 
 # Out file
 out/multiple/*
-!out/multiple/.gitkeep
 
 # Model files
 saved_models/*

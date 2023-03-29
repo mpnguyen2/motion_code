@@ -58,7 +58,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_kernel_comps', type=int, default=1, help='Number of components for kernel')
     parser.add_argument('--motion_code_dim', type=int, default=2, help='Dimension of motion code')
     parser.add_argument('--sigma_y', type=float, default=0.1, help='Noise variance for target variable')
-    parser.add_argument('--forecast', type=bool, default=True, help='Whether to use model for forecasting or classification')
+    parser.add_argument('--forecast', type=bool, default=False, help='Whether to use model for forecasting or classification')
     parser.add_argument('--percentage', type=float, default=.8, help='Split percentage for train/test forecasting')
     args = parser.parse_args()
 

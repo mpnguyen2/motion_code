@@ -59,9 +59,9 @@ def train(X_list, Y_list, labels, model_path, m=10, Q=8, latent_dim=3, sigma_y=0
     return
 
 def load_model(model_path):
-    model = np.load(model_path + '.npy', allow_pickle=True)
-    X_m, Z, Sigma, W = model.item().get('X_m'), model.item().get('Z'), model.item().get('Sigma'), model.item().get('W') 
-    mu_ms, A_ms, K_mm_invs = model.item().get('mu_ms'), model.item().get('A_ms'), model.item().get('K_mm_invs')
+    model = np.load(model_path + '.npy', allow_pickle=True).item()
+    X_m, Z, Sigma, W = model.get('X_m'), model.get('Z'), model.get('Sigma'), model.get('W') 
+    mu_ms, A_ms, K_mm_invs = model.get('mu_ms'), model.get('A_ms'), model.get('K_mm_invs')
     return X_m, Z, Sigma, W, mu_ms, A_ms, K_mm_invs
 
 # interpolate series (X_test, Y_test) on time values X_m.
