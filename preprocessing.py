@@ -2,6 +2,7 @@ import numpy as np
 from utils import *
 import scipy.io.wavfile as wavfile
 from sktime.datasets import load_UCR_UEA_dataset
+from utils import plot_timeseries
 
 # Color list for plotting
 COLOR_LIST = ['red', 'blue', 'green', 'yellow', 'black', 'orange', 'brown', 'grey', 'purple', 'hotpink']
@@ -90,7 +91,13 @@ def add_time_variable(Y, labels, visualize=False):
     '''
     try:
         labels = np.array(labels, dtype=int)
-        labels -= 1
+        labels_unique = np.sort(np.unique(labels))
+        num_motion = labels_unique.shape[0]
+        labels_to_indices = {}
+        for k in range(num_motion):
+            labels_to_indices[labels_unique[k]] = k
+        for i in range(labels.shape[0]):
+            labels[i] = labels_to_indices[labels[i]]
     except:
         return np.array([]), np.array([]), np.array([])
     Y = Y[:, 0, :]
@@ -99,8 +106,6 @@ def add_time_variable(Y, labels, visualize=False):
 
     # Optional visualization
     if visualize:
-        for i in range(num_samples):
-            plt.plot(X[i], Y[i], color=COLOR_LIST[int(labels[i])])
-        plt.show()
+        plot_timeseries(X, Y, labels)
 
     return X, Y, labels

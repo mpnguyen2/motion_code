@@ -48,6 +48,7 @@ coverage.xml
 *.exe
 
 # Data files
+data/noisy/*.npy
 data/sound/*
 
 # Out file

@@ -103,8 +103,6 @@ def classify(X_test, Y_test, kernel_params_all_motions, X_m, Z, mu_ms, A_ms, K_m
     return ind
 
 def test_classify(model_path, X_test_list, Y_test_list, true_labels, max_predictions=1000):
-    # print('Number of motions to predict: ', len(set(true_labels)))
-
     # Extract optimal trained params
     X_m, Z, Sigma, W, mu_ms, A_ms, K_mm_invs = load_model(model_path)
     num_motion = Z.shape[0]

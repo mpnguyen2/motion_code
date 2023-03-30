@@ -75,8 +75,10 @@ if __name__ == '__main__':
     parser.add_argument('--load_existing_data', type=bool, default=False, help='Load saved noisy data')
     args = parser.parse_args()
 
-    datasets = ['ItalyPowerDemand'] #, 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays', 
-                #'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain']
+    datasets = ['SharePriceIncrease']
+    # ['Earthquakes', 'Lightning7', 'ACSF1', 'HouseTwenty', 'Chinatown', 'InsectEPGRegularTrain', 'DodgerLoopDay']
+    # ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays', 
+    #  'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain']
     '''
     'ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
     'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll',
@@ -135,7 +137,7 @@ if __name__ == '__main__':
                     (LSTMFCNClassifier(n_epochs=200, verbose=0), "LSTM-FCN"),
                     (RocketClassifier(num_kernels=500), "Rocket"),
                     (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2"),
-                    (MotionCode(), "Motion code"),
+                    (MotionCode(), "Motion code")
         ]
 
         '''
