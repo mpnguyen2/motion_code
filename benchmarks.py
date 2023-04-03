@@ -5,9 +5,6 @@ import pandas as pd
 import warnings
 warnings.filterwarnings("ignore")
 
-import os
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
 from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
 from sktime.classification.dictionary_based import IndividualBOSS, BOSSEnsemble
 from sktime.classification.interval_based import RandomIntervalSpectralEnsemble, TimeSeriesForestClassifier
@@ -24,14 +21,14 @@ from sktime.classification.deep_learning import LSTMFCNClassifier
 from sktime.forecasting.naive import NaiveForecaster
 from sktime.forecasting.arima import ARIMA
 from sktime.forecasting.exp_smoothing import ExponentialSmoothing
-# from sktime.forecasting.ets import AutoETS
 from sktime.forecasting.structural import UnobservedComponents
+from sktime.forecasting.tbats import TBATS
 
-from preprocessing import load_data, add_time_variable
+from data_processing import load_data, process_data, split_train_test_forecasting
 from utils import RMSE
-from train import MotionCode, motion_code_classify
+from motion_code import MotionCode, motion_code_classify, motion_code_forecast
 
-def test_classify(clf, X_train, y_train, X_test, y_test, name=""):
+def run_classify(clf, clf_name, X_train, y_train, X_test, y_test, name=""):
     if clf_name == 'Motion code':
         return motion_code_classify(clf, name, X_train, y_train, X_test, y_test)
     clf.fit(X_train, y_train)
@@ -40,23 +37,24 @@ def test_classify(clf, X_train, y_train, X_test, y_test, name=""):
         y_pred, _ = y_pred
     return np.sum(y_pred == y_test)/y_pred.shape[0]
 
-def test_forecast(forecaster, name, percentage):
+def run_forecast(forecaster, forecaster_name, name, percentage):
+    if forecaster_name == 'Motion code':
+        return motion_code_forecast(forecaster, name, percentage)
+    
     # Get train/test data: collection instead of a single time series
     Y, labels = load_data(name, split='train')
-    _, Y, labels = add_time_variable(Y, labels)
+    Y, labels = process_data(Y, labels)
     if Y.shape[0] == 0:
         return -1
-    num_samples = Y.shape[0]
-    num_motion = np.unique(labels).shape[0]
-    seq_length = Y.shape[1]
-    train_num_steps = int(percentage*seq_length)
-    test_num_steps = seq_length - train_num_steps
-    all_errors = [[] for _ in range(num_motion)]
-    Y_train = Y[:, :train_num_steps]
-    Y_test = Y[:, train_num_steps:]
-    fh = np.arange(1, test_num_steps + 1) # specifying forecasting horizon
+    Y_train, Y_test, _, test_num_steps = split_train_test_forecasting(Y, percentage)
+    
+    # specifying forecasting horizon
+    fh = np.arange(1, test_num_steps + 1) 
 
     # Fitting and store errors.
+    num_motion = np.unique(labels).shape[0]
+    all_errors = [[] for _ in range(num_motion)]
+    num_samples = Y.shape[0]
     for i in range(num_samples):
         forecaster.fit(pd.Series(Y_train[i]))
         y_pred = forecaster.predict(fh).to_numpy()
@@ -75,34 +73,25 @@ if __name__ == '__main__':
     parser.add_argument('--load_existing_data', type=bool, default=False, help='Load saved noisy data')
     args = parser.parse_args()
 
-    datasets = ['SharePriceIncrease']
-    # ['Earthquakes', 'Lightning7', 'ACSF1', 'HouseTwenty', 'Chinatown', 'InsectEPGRegularTrain', 'DodgerLoopDay']
-    # ['ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays', 
-    #  'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain']
-    '''
-    'ItalyPowerDemand', 'PowerCons', 'Synthetic', 'Sound', 'MoteStrain', 'ECGFiveDays',
-    'SonyAIBORobotSurface2', 'GunPointOldVersusYoung', 'FreezerSmallTrain', 'UWaveGestureLibraryAll',
-    'Earthquakes', 'Lightning7', 'ACSF1', 'HouseTwenty', 'DodgerLoopDay', 'Chinatown', 'InsectEPGRegularTrain'
-    '''
+    datasets = ['Chinatown', 'ECGFiveDays', 'FreezerSmallTrain', 'GunPointOldVersusYoung', 'HouseTwenty', 'InsectEPGRegularTrain', 
+            'ItalyPowerDemand', 'Lightning7', 'MoteStrain', 'PowerCons', 'SonyAIBORobotSurface2', 'Sound', 'Synthetic', 
+            'UWaveGestureLibraryAll']
+
     if args.forecast:
         # Work with original versions of data.
-        all_forecasters = [(NaiveForecaster(strategy="last", sp=12), 'naive'),
-                           (ExponentialSmoothing(trend="add", seasonal="additive", sp=12), 'Exponential Smoothing'),
-                           (ARIMA(order=(1, 1, 0), seasonal_order=(0, 1, 0, 12), suppress_warnings=True), 'ARIMA'),
-                           (UnobservedComponents(level="local linear trend", freq_seasonal=[{"period": 12, "harmonics": 10}]), 'State-space')]
-        '''
-        (NaiveForecaster(strategy="last", sp=12), 'naive'),
-        (ExponentialSmoothing(trend="add", seasonal="additive", sp=12), 'Exponential Smoothing'),
-        (ARIMA(order=(1, 1, 0), seasonal_order=(0, 1, 0, 12), suppress_warnings=True), 'ARIMA'),
-        (AutoARIMA(sp=12, suppress_warnings=True), 'Auto-ARIMA'),
-        (UnobservedComponents(level="local linear trend", freq_seasonal=[{"period": 12, "harmonics": 10}]), 'State-space'),
-        (AutoETS(auto=True, sp=12, n_jobs=-1), 'Auto-ETS'),
-        '''
+        all_forecasters = [(ExponentialSmoothing(trend="add", seasonal="additive", sp=12), 'Exponential Smoothing'),
+                            (ARIMA(order=(1, 1, 0), seasonal_order=(0, 1, 0, 12), suppress_warnings=True), 'ARIMA'),
+                            (UnobservedComponents(level="local linear trend", freq_seasonal=[{"period": 12, "harmonics": 10}]), 'State-space'),
+                            (NaiveForecaster(strategy="last", sp=12), 'naive'),
+                            (TBATS(use_box_cox=False, use_trend=False, 
+                                use_damped_trend=False, sp=12, use_arma_errors=False, n_jobs=1), "TBATS"),
+                            (MotionCode(), 'Motion code')]
+        
         for forecaster, forecaster_name in all_forecasters:
             print(forecaster_name)
             for name in datasets:
                 try:
-                    print(name + ': ' + str(test_forecast(forecaster, forecaster_name, name, percentage=.8)))
+                    print(name + ': ' + str(run_forecast(forecaster, forecaster_name, name, percentage=.8)))
                 except:
                     print(name + ': -1')
             print('\n')
@@ -137,27 +126,7 @@ if __name__ == '__main__':
                     (LSTMFCNClassifier(n_epochs=200, verbose=0), "LSTM-FCN"),
                     (RocketClassifier(num_kernels=500), "Rocket"),
                     (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2"),
-                    (MotionCode(), "Motion code")
-        ]
-
-        '''
-        (MotionCode(), "Motion code"),
-        (KNeighborsTimeSeriesClassifier(distance="dtw"), "DTW"),
-        (Catch22Classifier(), "catch22"), 
-        (TEASER(), "Teaser"), 
-        (IndividualBOSS(), "BOSS"),
-        mean_gaussian_tskernel = AggrDist(RBF()) (TimeSeriesSVC(kernel=mean_gaussian_tskernel), "SVC"),
-        (RandomIntervalSpectralEnsemble(), "RISE"),
-        (ElasticEnsemble(proportion_of_param_options=0.1, proportion_train_for_test=0.1, 
-                        distance_measures = ["dtw","ddtw"], majority_vote=True), "EE"),
-        (BOSSEnsemble(max_ensemble_size=3), "BOSS-E"),
-        (TimeSeriesForestClassifier(n_estimators=5), "TSF"),
-        (RocketClassifier(num_kernels=500), "Rocket"),
-        (ShapeletTransformClassifier(estimator=RotationForest(n_estimators=3), 
-            n_shapelet_samples=100, max_shapelets=10, batch_size=20), "Shapelet"),
-        (LSTMFCNClassifier(n_epochs=200, verbose=0), "LSTM-FCN"),
-        (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2"),
-        '''
+                    (MotionCode(), "Motion code")]
 
         # Run classifers.
         result = {}
@@ -167,12 +136,12 @@ if __name__ == '__main__':
             for name in datasets:
                 try:
                     X_train, y_train, X_test, y_test = noisy_data[name]
-                    err = test_classify(clf, X_train, y_train, X_test, y_test, name)
-                    print(name + ': ' + str(err))
-                    result[clf_name].append(err)
+                    acc = run_classify(clf, clf_name, X_train, y_train, X_test, y_test, name)
+                    print(name + ': ' + str(acc))
+                    result[clf_name].append(acc)
                 except:
                     print(name + ': -1')
                     result[clf_name].append(-1)
             print('\n')
 
-        pd.DataFrame(result, index=datasets).to_csv('out/classify_errors.csv')
+        pd.DataFrame(result, index=datasets).to_csv('out/classify_accuracy.csv')
