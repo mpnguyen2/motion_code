@@ -3,31 +3,28 @@ Solving time series classification and forecasting is particularly challenging o
 
 The method is robust to noise and produces competitive performance against other popular time series classification and forecasting algorithms. Moreover, it can deal with variable length time series and missing data, while many other methods fail to do so. See **Motion Code**'s forecasting prediction with uncertainty on PowerCons data for example:
 
-<div style="display:flex;justify-content:space-between">
-  <figure>
-    <img src="out/multiple/uncertainty_PowerCons0.png" alt="Warm season in PowerCons" width="45%">
-    <figcaption style="text-align:center">Warm season in PowerCons</figcaption>
-  </figure>
+<figure style="display: flex; flex-direction: column; align-items: center;">
+    <img src="out/multiple/uncertainty_PowerCons0.png" alt="Warm season in PowerCons" width="35%">
+    <figcaption>Warm season in PowerCons</figcaption>
+</figure>
 
-  <figure>
-    <img src="out/multiple/uncertainty_PowerCons1.png" alt="Cold season in PowerCons" width="45%">
-    <figcaption style="text-align:center">Cold season in PowerCons</figcaption>
-  </figure>
-</div>
+<figure style="display: flex; flex-direction: column; align-items: center;">
+<img src="out/multiple/uncertainty_PowerCons1.png" alt="Cold season in PowerCons" width="35%">
+<figcaption>Cold season in PowerCons</figcaption>
+</figure>
 
 Finally, **Motion Code** provides an interpretable feature that effectively captures the underlying stochastic process from a collection of noisy time series. See below for the feature captured in **MoteStrain** data:
 
-<div style="display:flex;justify-content:space-between">
-  <figure>
-    <img src="out/multiple/MoteStrain0.png" alt="Humidity sensor" width="45%">
-    <figcaption style="text-align:center">Humidity sensor MoteStrain</figcaption>
-  </figure>
+<figure style="display: flex; flex-direction: column; align-items: center;">
+<img src="out/multiple/MoteStrain0.png" alt="Humidity sensor" width="35%">
+<figcaption>Humidity sensor MoteStrain</figcaption>
+</figure>
 
-  <figure>
-    <img src="out/multiple/MoteStrain1.png" alt="Temperature sensor" width="45%">
-    <figcaption style="text-align:center">Temperature sensor </figcaption>
-  </figure>
-</div>
+<figure style="display: flex; flex-direction: column; align-items: center;">
+<img src="out/multiple/MoteStrain1.png" alt="Temperature sensor" width="35%">
+<figcaption>Temperature sensor MoteStrain</figcaption>
+</figure>
+
 
 To build a **Motion Code** model, add the following code:
 
