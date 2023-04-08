@@ -52,7 +52,6 @@ data/noisy/*.npy
 data/sound/*
 
 # Out file
-out/multiple/*
 
 # Model files
 saved_models/*
