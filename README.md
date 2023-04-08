@@ -51,3 +51,6 @@ For the forecasting task, use:
 mean, covar = model.forecast_predict(test_time_horizon, label=0)
 ```
 See <strong><code>example.ipynb</code></strong> for more details.
+
+<br></br>
+**Note**: We are submitting our work to a couple of conferences. If you want to cite this work, please contact me directly.
