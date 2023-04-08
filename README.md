@@ -3,15 +3,14 @@ Solving time series classification and forecasting is particularly challenging o
 
 The method is robust to noise and produces competitive performance against other popular time series classification and forecasting algorithms. Moreover, it can deal with variable length time series and missing data, while many other methods fail to do so. See **Motion Code**'s forecasting prediction with uncertainty on PowerCons data for example:
 
-<br></br>
 <figure style="display: flex; flex-direction: column; align-items: center;">
-    <img src="out/multiple/uncertainty_PowerCons0.png" alt="Warm season in PowerCons" width="45%">
+    <img src="out/multiple/uncertainty_PowerCons0.png" alt="Warm season in PowerCons" width="70%">
     <figcaption>Warm season in PowerCons</figcaption>
 </figure>
 
 <br></br>
 <figure style="display: flex; flex-direction: column; align-items: center;">
-<img src="out/multiple/uncertainty_PowerCons1.png" alt="Cold season in PowerCons" width="45%">
+<img src="out/multiple/uncertainty_PowerCons1.png" alt="Cold season in PowerCons" width="70%">
 <figcaption>Cold season in PowerCons</figcaption>
 </figure>
 
@@ -19,17 +18,18 @@ The method is robust to noise and produces competitive performance against other
 Finally, **Motion Code** provides an interpretable feature that effectively captures the underlying stochastic process from a collection of noisy time series. See below for the feature captured in **MoteStrain** data:
 
 <figure style="display: flex; flex-direction: column; align-items: center;">
-<img src="out/multiple/MoteStrain0.png" alt="Humidity sensor" width="45%">
+<img src="out/multiple/MoteStrain0.png" alt="Humidity sensor" width="70%">
 <figcaption>Humidity sensor MoteStrain</figcaption>
 </figure>
 
 <br></br>
 <figure style="display: flex; flex-direction: column; align-items: center;">
-<img src="out/multiple/MoteStrain1.png" alt="Temperature sensor" width="45%">
+<img src="out/multiple/MoteStrain1.png" alt="Temperature sensor" width="70%">
 <figcaption>Temperature sensor MoteStrain</figcaption>
 </figure>
-<br></br>
 
+<br></br>
+<br></br>
 To build a **Motion Code** model, add the following code:
 
 ``` python
