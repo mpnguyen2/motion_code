@@ -15,7 +15,7 @@ The method is robust to noise and produces competitive performance against other
 </figure>
 
 <br></br>
-Finally, **Motion Code** provides an interpretable feature that effectively captures the underlying stochastic process from a collection of noisy time series. See below for the feature captured in **MoteStrain** data:
+Finally, **Motion Code** provides an interpretable feature that effectively captures the core information of the governing dynamics linearly from a collection of noisy time series. See below for the feature captured in **MoteStrain** data:
 
 <figure style="display: flex; flex-direction: column; align-items: center;">
 <img src="out/multiple/MoteStrain0.png" alt="Humidity sensor" width="70%">
@@ -28,7 +28,6 @@ Finally, **Motion Code** provides an interpretable feature that effectively capt
 <figcaption>Temperature sensor MoteStrain</figcaption>
 </figure>
 
-<br></br>
 <br></br>
 To build a **Motion Code** model, add the following code:
 
