@@ -5,12 +5,12 @@ The method is robust to noise and produces competitive performance against other
 
 <div style="display:flex;justify-content:space-between">
   <figure>
-    <img src="out/multiple/uncertainty_PowerCons0.png" alt="alt_text_1" >
+    <img src="out/multiple/uncertainty_PowerCons0.png" alt="Warm season in PowerCons" width="45%">
     <figcaption style="text-align:center">Warm season in PowerCons</figcaption>
   </figure>
 
   <figure>
-    <img src="out/multiple/uncertainty_PowerCons1.png" alt="alt_text_2" >
+    <img src="out/multiple/uncertainty_PowerCons1.png" alt="Cold season in PowerCons" width="45%">
     <figcaption style="text-align:center">Cold season in PowerCons</figcaption>
   </figure>
 </div>
@@ -19,12 +19,12 @@ Finally, **Motion Code** provides an interpretable feature that effectively capt
 
 <div style="display:flex;justify-content:space-between">
   <figure>
-    <img src="out/multiple/MoteStrain0.png" alt="alt_text_1" >
+    <img src="out/multiple/MoteStrain0.png" alt="Humidity sensor" width="45%">
     <figcaption style="text-align:center">Humidity sensor MoteStrain</figcaption>
   </figure>
 
   <figure>
-    <img src="out/multiple/MoteStrain1.png" alt="alt_text_2" >
+    <img src="out/multiple/MoteStrain1.png" alt="Temperature sensor" width="45%">
     <figcaption style="text-align:center">Temperature sensor </figcaption>
   </figure>
 </div>
