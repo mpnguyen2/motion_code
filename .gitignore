@@ -54,7 +54,6 @@ data/sound/*
 # Out file
 
 # Model files
-saved_models/*
 
 # Log files
 logs/*

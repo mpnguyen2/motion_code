@@ -1,32 +1,18 @@
-# Motion Code Learning for time series data
-Solving time series classification and forecasting is particularly challenging on noisy variable-length time series. We employ variational inference and sparse Gaussian model to develop an integrated framework called **Motion Code** to deal with this type of data.
+# Motion Code Learning for noisy time series
+In this work, we employ variational inference and stochastic process modeling to develop an integrated framework called **Motion Code**. The framework can perform time series forecasting simultaneously with classification across different collections of time series data, while most other current methods only focus on one task at a time. Our *Motion Code* model is particularly robust to noise and produces competitive performance against other popular time series classification and forecasting algorithms. **Motion Code** can also deal with variable-length time series and missing data, while other methods fail to do so.
 
-The method is robust to noise and produces competitive performance against other popular time series classification and forecasting algorithms. Moreover, it can deal with variable length time series and missing data, while many other methods fail to do so. See **Motion Code**'s forecasting prediction with uncertainty on PowerCons data for example:
+**Motion Code** provides an interpretable feature that effectively captures the core information of the governing dynamics from a collection of noisy time series. See below for the features captured in **MoteStrain** data:
 
-<figure style="display: flex; flex-direction: column; align-items: center;">
-    <img src="out/multiple/uncertainty_PowerCons0.png" alt="Warm season in PowerCons" width="70%">
-    <figcaption>Warm season in PowerCons</figcaption>
-</figure>
-
-<br></br>
-<figure style="display: flex; flex-direction: column; align-items: center;">
-<img src="out/multiple/uncertainty_PowerCons1.png" alt="Cold season in PowerCons" width="70%">
-<figcaption>Cold season in PowerCons</figcaption>
-</figure>
+Humidity sensor MoteStrain                 |  Temperature sensor MoteStrain
+:-------------------------:|:-------------------------:
+![](out/multiple/MoteStrain0.png)  |  ![](out/multiple/MoteStrain1.png)
 
 <br></br>
-Finally, **Motion Code** provides an interpretable feature that effectively captures the core information of the governing dynamics linearly from a collection of noisy time series. See below for the feature captured in **MoteStrain** data:
+**Motion Code**'s forecasting prediction with uncertainty on PowerCons data:
 
-<figure style="display: flex; flex-direction: column; align-items: center;">
-<img src="out/multiple/MoteStrain0.png" alt="Humidity sensor" width="70%">
-<figcaption>Humidity sensor MoteStrain</figcaption>
-</figure>
-
-<br></br>
-<figure style="display: flex; flex-direction: column; align-items: center;">
-<img src="out/multiple/MoteStrain1.png" alt="Temperature sensor" width="70%">
-<figcaption>Temperature sensor MoteStrain</figcaption>
-</figure>
+Warm season in PowerCons                 |  Cold season in PowerCons
+:-------------------------:|:-------------------------:
+![](out/multiple/uncertainty_PowerCons0.png)  |  ![](out/multiple/uncertainty_PowerCons1.png)
 
 <br></br>
 To build a **Motion Code** model, add the following code:
@@ -51,6 +37,8 @@ For the forecasting task, use:
 mean, covar = model.forecast_predict(test_time_horizon, label=0)
 ```
 See <strong><code>example.ipynb</code></strong> for more details.
-
 <br></br>
-**Note**: We are submitting our work to a couple of conferences. If you want to cite this work, please contact me directly.
+
+Due to limited Github storage, all noisy data are stored at [Noisy Datasets](https://www.dropbox.com/scl/fo/9fliuzo0d92zawut1gzs3/h?rlkey=89gqigob7q3509gjtcindr9nc&dl=0). Please download the data at the given link to run **Motion Code** notebooks and code.
+
+**Note**: We are submitting our work to a conference. If you want to cite this work, please contact me directly.
