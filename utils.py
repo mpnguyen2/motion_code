@@ -91,7 +91,7 @@ def plot_motion_codes(X_train, Y_train, test_time_horizon, labels, label_names,
         plt.fill_between(test_time_horizon, mean+2*std, mean-2*std,
             color=COLOR_LIST[(k+1)%num_motion], alpha=0.1, zorder=1)
         Y_test = np.interp(X_m_ks[k], X[0], np.mean(Y, axis=0))
-        plt.scatter(X_m_ks[k], Y_test, color=color, s=20, zorder=2, label='Inducing values')
+        plt.scatter(X_m_ks[k], Y_test, color=color, s=20, zorder=2, label='Mean values at the most\ninformative timestamps')
         handle_list, _ = plt.gca().get_legend_handles_labels()
         handle_list.append(mpatches.Patch(color=COLOR_LIST[(k+1)%num_motion], 
                                           label='Uncertainty region'))
