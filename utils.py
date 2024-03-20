@@ -51,7 +51,10 @@ def forecast_mean_vars_motion_codes(model, test_time_horizon):
 ## Plotting utils ##
 def plot_timeseries(X_list, y_list, labels, label_names=[], output_file='out/plot.png'):
     # Plot timeseries
-    num_series = len(y_list)
+    if isinstance(y_list, list):
+        num_series = len(y_list)
+    else:
+        num_series = y_list.shape[0]
     L = len(np.unique(labels))
     if len(label_names) == 0:
         label_names = [str(i) for i in range(L)]
@@ -68,34 +71,59 @@ def plot_timeseries(X_list, y_list, labels, label_names=[], output_file='out/plo
     plt.clf()
 
 def plot_motion_codes(X_train, Y_train, test_time_horizon, labels, label_names,
-                           model, output_dir='out/multiple/'):
+                           model, output_dir='out/multiple/', additional_data=None):
     # Get prediction and inducing points
     num_motion = np.unique(labels).shape[0]
-    means, stds = means, stds = forecast_mean_vars_motion_codes(model, test_time_horizon)
     X_m, Z = model.X_m, model.Z
     X_m_ks = [sigmoid(X_m @ Z[k]) for k in range(num_motion)]
 
     # Plot individual stochastic process with motion code prediction and inducing pts
     if len(label_names) == 0:
         label_names = [str(i) for i in range(num_motion)]
+    
+    # Forecast mean and variance if `test_time_horizon` is specified. 
+    if test_time_horizon is not None:
+        means, stds = forecast_mean_vars_motion_codes(model, test_time_horizon)
+    if additional_data is not None:
+        X_original = additional_data['X']
+        Y_original = additional_data['Y']
     for k in range(num_motion):
-        X = X_train[labels==k, :]
-        Y = Y_train[labels==k, :]
+        if isinstance(X_train, list):
+            indices = list(np.where(labels==k)[0])
+            X = [X_train[i] for i in indices]
+            Y = [Y_train[i] for i in indices]
+            num_series = len(X)
+        else:
+            X = X_train[labels==k, :]
+            Y = Y_train[labels==k, :]
+            num_series = X.shape[0]
         plt.plot(X[0], Y[0], c=COLOR_LIST[k], lw=0.5, zorder=1, label=label_names[k])
-        for i in range(1, X.shape[0]):
-            plt.plot(X[i], Y[i], c=COLOR_LIST[k], lw=0.5, zorder=1)
-        std = stds[k]; mean = means[k]
         color = COLOR_LIST[(k+1)%num_motion]
-        plt.plot(test_time_horizon, mean, c=color, lw=2, 
-                 zorder=1, label='Mean prediction')
-        plt.fill_between(test_time_horizon, mean+2*std, mean-2*std,
-            color=COLOR_LIST[(k+1)%num_motion], alpha=0.1, zorder=1)
-        Y_test = np.interp(X_m_ks[k], X[0], np.mean(Y, axis=0))
-        plt.scatter(X_m_ks[k], Y_test, color=color, s=20, zorder=2, label='Mean values at the most\ninformative timestamps')
+        for i in range(1, num_series):
+            plt.plot(X[i], Y[i], c=COLOR_LIST[k], lw=0.5, zorder=1)
+        if test_time_horizon is not None:
+            std = stds[k]; mean = means[k]
+            plt.plot(test_time_horizon, mean, c=color, lw=2, 
+                    zorder=1, label='Mean prediction')
+            plt.fill_between(test_time_horizon, mean+2*std, mean-2*std,
+                color=COLOR_LIST[(k+1)%num_motion], alpha=0.1, zorder=1)
+        # mean, std = model.forecast_predict(test_time_horizon=X_m_ks[k], label=k)
+        if additional_data is not None:
+            X1 = X_original[0]
+            Y1 = Y_original[labels==k, :]
+        else:
+            X1 = X[0]
+            Y1 = Y
+        Y_test = np.interp(X_m_ks[k], X1, np.mean(Y1, axis=0))
+        plt.scatter(X_m_ks[k], Y_test, color=color, s=20, zorder=2,
+                    label='Mean values at the most\ninformative timestamps')
         handle_list, _ = plt.gca().get_legend_handles_labels()
-        handle_list.append(mpatches.Patch(color=COLOR_LIST[(k+1)%num_motion], 
-                                          label='Uncertainty region'))
-        plt.legend(handles=handle_list, fontsize='10', loc ="lower left")
+        if test_time_horizon is not None:
+            handle_list.append(mpatches.Patch(color=COLOR_LIST[(k+1)%num_motion], 
+                                            label='Uncertainty region'))
+        plt.legend(handles=handle_list, fontsize='10') #, loc ="lower left"
+        # max_Y = np.max(np.abs(Y))
+        # plt.ylim(-2*max_Y, 2*max_Y)
         plt.savefig(output_dir + str(k) + '.png')
         plt.clf()
 

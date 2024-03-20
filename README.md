@@ -1,11 +1,15 @@
 # Motion Code Learning for noisy time series
-In this work, we employ variational inference and stochastic process modeling to develop an integrated framework called **Motion Code**. The framework can perform time series forecasting simultaneously with classification across different collections of time series data, while most other current methods only focus on one task at a time. Our *Motion Code* model is particularly robust to noise and produces competitive performance against other popular time series classification and forecasting algorithms. **Motion Code** can also deal with variable-length time series and missing data, while other methods fail to do so.
+In this work, we employ variational inference and stochastic process modeling to develop an integrated framework called **Motion Code**. The framework can perform time series forecasting simultaneously with classification across different collections of time series data, while most other current methods only focus on one task at a time. Our *Motion Code* model is particularly robust to noise and produces competitive performance against other popular time series classification and forecasting algorithms. **Motion Code** can also deal with variable-length time series and missing data.
 
 **Motion Code** provides an interpretable feature that effectively captures the core information of the governing dynamics from a collection of noisy time series. See below for the features captured in **MoteStrain** data:
 
 Humidity sensor MoteStrain                 |  Temperature sensor MoteStrain
 :-------------------------:|:-------------------------:
 ![](out/multiple/MoteStrain0.png)  |  ![](out/multiple/MoteStrain1.png)
+
+Weekend Chinatown               |  Weekday Chinatown
+:-------------------------:|:-------------------------:
+![](out/multiple/Chinatown0.png)  |  ![](out/multiple/Chinatown1.png)
 
 <br></br>
 **Motion Code**'s forecasting prediction with uncertainty on PowerCons data:

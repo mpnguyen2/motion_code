@@ -10,8 +10,8 @@ from sktime.forecasting.arima import ARIMA
 from sktime.forecasting.structural import UnobservedComponents
 from sktime.forecasting.tbats import TBATS
 
-from sparse_gp import *
-from utils import *
+from utils import plot_timeseries, plot_motion_codes, plot_mean_covars
+from utils import get_inducing_pts_for_individual_series
 from data_processing import load_data, process_data_for_motion_codes, split_train_test_forecasting
 from motion_code import MotionCode
 
@@ -52,25 +52,40 @@ if __name__ == '__main__':
     parser.add_argument('--type', type=str, default='forecast_motion_code', 
                         help="Type of visualization: plot_dataset/gp_clusters/forecast_motion_code/forecast_mean_var")
     parser.add_argument('--dataset', type=str, default='ItalyPowerDemand')
+    parser.add_argument('--load_existing_data', type=bool, default=False)
     args = parser.parse_args()
 
     # Load train/test data.
     name = args.dataset
-    Y_train, labels_train = load_data(name, split='train')
+    data_path = 'data/noisy/' + name
+    if args.load_existing_data:
+        print('Load existing noisy data')
+        data = np.load(data_path + '.npy', allow_pickle=True).item()
+        Y_train, labels_train = data.get('X_train'), data.get('y_train')
+    else:
+        print('Create new easily visualized data')
+        Y_train, labels_train = load_data(name, split='train')
     X_train, Y_train, labels_train = process_data_for_motion_codes(Y_train, labels_train)
     num_motion = np.unique(labels_train).shape[0]
     if args.type == 'plot_dataset' or args.type == 'gp_clusters':
-        Y_test, labels_test = load_data(name, split='test')
+        if args.load_existing_data:
+            data = np.load(data_path + '.npy', allow_pickle=True).item()
+            Y_test, labels_test = data.get('X_test'), data.get('y_test')
+        else:
+            Y_test, labels_test = load_data(name, split='test')
         X_test, Y_test, labels_test = process_data_for_motion_codes(Y_test, labels_test)
         data = (X_train, Y_train, labels_train, X_test, Y_test, labels_test)
     else:
-        percentage = .8
-        Y_train, Y_test, train_num_steps, test_num_steps = split_train_test_forecasting(Y_train, percentage)
-        test_time_horizon = X_train[0, train_num_steps:]
-        X_train = X_train[:, :train_num_steps]
-
-        # Load motion code model for forecasting.
-        model_path='saved_models/'+args.dataset+'_forecast'
+        if args.type == 'classify_motion_code':
+            model_path='saved_models/'+args.dataset+'_classify'
+        else:
+            percentage = .8
+            Y_train, Y_test, train_num_steps, test_num_steps = split_train_test_forecasting(Y_train, percentage)
+            test_time_horizon = X_train[0, train_num_steps:]
+            X_train = X_train[:, :train_num_steps]
+            model_path='saved_models/'+args.dataset+'_forecast'
+        
+        # Load motion code model
         motion_code_model = MotionCode()
         motion_code_model.load(model_path)
 
@@ -87,8 +102,18 @@ if __name__ == '__main__':
         label_names = ['Kitchen', 'Garage']
     elif args.dataset == 'PowerCons':
         label_names = ['Warm', 'Cold']
+    elif args.dataset == 'ItalyPowerDemand':
+        label_names = ['October to March', 'April to September']
+    elif args.dataset == 'SonyAIBORobotSurface2':
+        label_names = ['Cement', 'Carpet']
+    elif args.dataset == 'FreezerSmallTrain':
+        label_names = ['Kitchen', 'Garage']
+    elif args.dataset == 'Chinatown':
+        label_names = ['Weekend', 'Weekday']
+    elif args.dataset == 'InsectEPGRegularTrain':
+        label_names = ['Class 1', 'Class 2', 'Class 3']
     else:
-        label_names = []
+        label_names = ['0', '1']
 
     if args.type == 'plot_dataset':
         plot_timeseries(X_train, Y_train, labels_train, label_names=label_names,
@@ -99,6 +124,10 @@ if __name__ == '__main__':
     elif args.type == 'forecast_motion_code':
         plot_motion_codes(X_train, Y_train, test_time_horizon, labels_train, label_names,
                             motion_code_model, output_dir='out/multiple/' + name)
+    
+    elif args.type=='classify_motion_code':
+        plot_motion_codes(X_train, Y_train, None, labels_train, label_names,
+                            motion_code_model, output_dir='out/multiple/classify_' + name)
         
     elif args.type == 'forecast_mean_var':
         forecasters = [(motion_code_model, "Motion code"),

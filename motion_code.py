@@ -98,7 +98,11 @@ class MotionCode:
         # Predict each trajectory/timeseries in the test dataset
         num_predicted = 0
         pred = []; gt = []
-        pbar = tqdm(zip(X_test_list, Y_test_list), total=Y_test_list.shape[0], leave=False)
+        if isinstance(Y_test_list, list):
+            num_test = len(Y_test_list)
+        else:
+            num_test = Y_test_list.shape[0]
+        pbar = tqdm(zip(X_test_list, Y_test_list), total=num_test, leave=False)
         num_predicted = 0
         for X_test, Y_test in pbar:
             # Get predict and ground truth motions
