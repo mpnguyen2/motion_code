@@ -50,7 +50,8 @@ def visualize_data_by_GP(data, num_motion, m=10, Q=1, label_names=[], plot_path=
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='CLI arguments')
     parser.add_argument('--type', type=str, default='forecast_motion_code', 
-                        help="Type of visualization: plot_dataset/gp_clusters/forecast_motion_code/forecast_mean_var")
+                        help="Type of visualization: plot_dataset/gp_clusters/classify_motion_code"
+                        + "/forecast_motion_code/forecast_mean_var")
     parser.add_argument('--dataset', type=str, default='ItalyPowerDemand')
     parser.add_argument('--load_existing_data', type=bool, default=False)
     args = parser.parse_args()

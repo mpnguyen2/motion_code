@@ -68,6 +68,7 @@ def plot_timeseries(X_list, y_list, labels, label_names=[], output_file='out/plo
             plt.plot(X_list[i], y_list[i], c=COLOR_LIST[labels[i]], lw=0.5)
     plt.legend(fontsize='10')
     plt.savefig(output_file)
+    plt.show()
     plt.clf()
 
 def plot_motion_codes(X_train, Y_train, test_time_horizon, labels, label_names,
@@ -117,6 +118,8 @@ def plot_motion_codes(X_train, Y_train, test_time_horizon, labels, label_names,
         Y_test = np.interp(X_m_ks[k], X1, np.mean(Y1, axis=0))
         plt.scatter(X_m_ks[k], Y_test, color=color, s=20, zorder=2,
                     label='Mean values at the most\ninformative timestamps')
+        # plt.plot(X_m_ks[k], Y_test, color=color, linestyle='dashed',
+        #            label='Mean values at the most\ninformative timestamps')
         handle_list, _ = plt.gca().get_legend_handles_labels()
         if test_time_horizon is not None:
             handle_list.append(mpatches.Patch(color=COLOR_LIST[(k+1)%num_motion], 
@@ -125,6 +128,7 @@ def plot_motion_codes(X_train, Y_train, test_time_horizon, labels, label_names,
         # max_Y = np.max(np.abs(Y))
         # plt.ylim(-2*max_Y, 2*max_Y)
         plt.savefig(output_dir + str(k) + '.png')
+        plt.show()
         plt.clf()
 
 def plot_mean_covars(X_train, Y_train, Y_test, labels, label_names, 
