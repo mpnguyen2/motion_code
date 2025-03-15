@@ -1,0 +1,15 @@
+jax
+matplotlib
+numpy
+pandas
+scikit_learn
+scipy
+sktime
+tqdm
+einops
+local-attention
+patool
+reformer-pytorch
+sympy
+torch
+PyWavelets

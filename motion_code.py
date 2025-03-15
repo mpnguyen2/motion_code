@@ -141,29 +141,19 @@ class MotionCode:
         return errs
 
 ## Convenient functions that combine train, load, test, report errors.
-def motion_code_classify(model, name, Y_train, labels_train, Y_test, labels_test, load_existing_model=False):
-    # Train
-    X_train, Y_train, labels_train = process_data_for_motion_codes(Y_train, labels_train)
+def motion_code_classify(model, name,
+                        X_train, Y_train, labels_train,
+                        X_test, Y_test, labels_test,
+                        load_existing_model=False):
     model_path = 'saved_models/' + name + '_classify'
     if not load_existing_model:
         model.fit(X_train, Y_train, labels_train, model_path)
-    # Test
     model.load(model_path)
-    X_test, Y_test, labels_test = process_data_for_motion_codes(Y_test, labels_test)
     acc = model.classify_predict_on_batches(X_test, Y_test, labels_test)
     return acc
 
-def motion_code_forecast(model, name, percentage, load_existing_model=False):
-    # Train/test for forecasting on the training set but split on time horizon
-    Y_train, labels_train = load_data(name, split='train')
-    X, Y, labels = process_data_for_motion_codes(Y_train, labels_train)
-    
-    # Split train/test wrt time horizon
-    Y_train, Y_test, train_num_steps, _ = split_train_test_forecasting(Y, percentage)
-    X_train = X[:, :train_num_steps] # Motion code need addition X variable
-    test_time_horizon = X[0, train_num_steps:]
-
-    # Train/test
+def motion_code_forecast(model, name, X_train, Y_train, labels,
+                         test_time_horizon, Y_test, load_existing_model=False):
     model_path = 'saved_models/' + name + '_forecast'
     if not load_existing_model:
         model.fit(X_train, Y_train, labels, model_path)

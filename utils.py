@@ -74,6 +74,7 @@ def plot_timeseries(X_list, y_list, labels, label_names=[], output_file='out/plo
 def plot_motion_codes(X_train, Y_train, test_time_horizon, labels, label_names,
                            model, output_dir='out/multiple/', additional_data=None):
     # Get prediction and inducing points
+    labels = np.array(labels, dtype=int)
     num_motion = np.unique(labels).shape[0]
     X_m, Z = model.X_m, model.Z
     X_m_ks = [sigmoid(X_m @ Z[k]) for k in range(num_motion)]
@@ -113,9 +114,13 @@ def plot_motion_codes(X_train, Y_train, test_time_horizon, labels, label_names,
             X1 = X_original[0]
             Y1 = Y_original[labels==k, :]
         else:
-            X1 = X[0]
+            X1 = X
             Y1 = Y
-        Y_test = np.interp(X_m_ks[k], X1, np.mean(Y1, axis=0))
+        if isinstance(X1, list):
+            Y_test_all = [np.interp(X_m_ks[k], x1, y1) for x1, y1 in zip(X1, Y1)]
+            Y_test = np.mean(np.array(Y_test_all), axis=0)
+        else:
+            Y_test = np.interp(X_m_ks[k], X1[0], np.mean(Y1, axis=0))
         plt.scatter(X_m_ks[k], Y_test, color=color, s=20, zorder=2,
                     label='Mean values at the most\ninformative timestamps')
         # plt.plot(X_m_ks[k], Y_test, color=color, linestyle='dashed',

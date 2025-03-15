@@ -1,0 +1,384 @@
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Dataset</th>
+      <th>DTW</th>
+      <th>TSF</th>
+      <th>BOSS</th>
+      <th>BOSS-E</th>
+      <th>RISE</th>
+      <th>Shapelet</th>
+      <th>catch22</th>
+      <th>SVC</th>
+      <th>LSTM-FCN</th>
+      <th>Teaser</th>
+      <th>Rocket</th>
+      <th>Hive-Cote 2</th>
+      <th>Informer</th>
+      <th>Autoformer</th>
+      <th>FEDformer</th>
+      <th>ETSformer</th>
+      <th>LightTS</th>
+      <th>PatchTST</th>
+      <th>Crossformer</th>
+      <th>DLinear</th>
+      <th>TimesNet</th>
+      <th>iTransformer</th>
+      <th>Mamba</th>
+      <th>Motion Code</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>PDSetting1</td>
+      <td>63.35</td>
+      <td>63.98</td>
+      <td>61.8</td>
+      <td>65.53</td>
+      <td><span style="background-color: red; color: white;">70.81</span></td>
+      <td>52.8</td>
+      <td>68.94</td>
+      <td>63.96</td>
+      <td>43.48</td>
+      <td>59.94</td>
+      <td>61.49</td>
+      <td>59.63</td>
+      <td>67.7</td>
+      <td>56.21</td>
+      <td>66.46</td>
+      <td>59.63</td>
+      <td>66.15</td>
+      <td>58.07</td>
+      <td><span style="background-color: blue; color: white;">70.19</span></td>
+      <td>66.77</td>
+      <td>68.63</td>
+      <td>69.88</td>
+      <td>68.94</td>
+      <td><span style="background-color: red; color: white;">70.81</span></td>
+    </tr>
+    <tr>
+      <td>PDSetting2</td>
+      <td>43.12</td>
+      <td>51.98</td>
+      <td>45.92</td>
+      <td>36.83</td>
+      <td>53.61</td>
+      <td>44.99</td>
+      <td>51.52</td>
+      <td>48.02</td>
+      <td>24.01</td>
+      <td>37.53</td>
+      <td>51.52</td>
+      <td>50.82</td>
+      <td><span style="background-color: blue; color: white;">53.85</span></td>
+      <td>35.2</td>
+      <td>47.55</td>
+      <td>39.63</td>
+      <td>47.55</td>
+      <td>36.83</td>
+      <td><span style="background-color: blue; color: white;">53.85</span></td>
+      <td>51.28</td>
+      <td>51.75</td>
+      <td>50.35</td>
+      <td>47.55</td>
+      <td><span style="background-color: red; color: white;">54.31</span></td>
+    </tr>
+    <tr>
+      <td>PronunciationAudio</td>
+      <td>50.0</td>
+      <td><span style="background-color: red; color: white;">87.5</span></td>
+      <td>68.75</td>
+      <td>62.5</td>
+      <td>62.5</td>
+      <td>68.75</td>
+      <td>50.0</td>
+      <td>62.5</td>
+      <td>56.25</td>
+      <td>Error</td>
+      <td>75.0</td>
+      <td>75.0</td>
+      <td>68.75</td>
+      <td>68.75</td>
+      <td>75.0</td>
+      <td><span style="background-color: red; color: white;">87.5</span></td>
+      <td>68.75</td>
+      <td>75.0</td>
+      <td><span style="background-color: blue; color: white;">81.25</span></td>
+      <td><span style="background-color: red; color: white;">87.5</span></td>
+      <td>75.0</td>
+      <td><span style="background-color: blue; color: white;">81.25</span></td>
+      <td>75.0</td>
+      <td><span style="background-color: red; color: white;">87.5</span></td>
+    </tr>
+    <tr>
+      <td>ECGFiveDays</td>
+      <td>54.47</td>
+      <td>58.07</td>
+      <td>50.06</td>
+      <td>58.42</td>
+      <td>59.35</td>
+      <td>52.61</td>
+      <td>52.85</td>
+      <td>49.71</td>
+      <td>53.54</td>
+      <td>Error</td>
+      <td>56.79</td>
+      <td>55.75</td>
+      <td>53.66</td>
+      <td>57.72</td>
+      <td>58.19</td>
+      <td>59.93</td>
+      <td>55.87</td>
+      <td>56.45</td>
+      <td>59.0</td>
+      <td><span style="background-color: blue; color: white;">60.28</span></td>
+      <td>55.17</td>
+      <td>56.91</td>
+      <td>54.59</td>
+      <td><span style="background-color: red; color: white;">66.55</span></td>
+    </tr>
+    <tr>
+      <td>FreezerSmallTrain</td>
+      <td>52.42</td>
+      <td>54.28</td>
+      <td>50.0</td>
+      <td>50.95</td>
+      <td>53.79</td>
+      <td>50.0</td>
+      <td>53.58</td>
+      <td>50.0</td>
+      <td>50.0</td>
+      <td>50.11</td>
+      <td>52.67</td>
+      <td>58.18</td>
+      <td>58.84</td>
+      <td>51.79</td>
+      <td>50.98</td>
+      <td>61.09</td>
+      <td>61.33</td>
+      <td>56.21</td>
+      <td>60.63</td>
+      <td><span style="background-color: blue; color: white;">65.23</span></td>
+      <td>56.21</td>
+      <td>63.68</td>
+      <td>57.33</td>
+      <td><span style="background-color: red; color: white;">70.25</span></td>
+    </tr>
+    <tr>
+      <td>HouseTwenty</td>
+      <td>57.98</td>
+      <td>57.14</td>
+      <td>52.1</td>
+      <td>57.98</td>
+      <td>42.02</td>
+      <td>57.14</td>
+      <td>45.38</td>
+      <td>45.38</td>
+      <td>57.98</td>
+      <td>53.78</td>
+      <td>58.82</td>
+      <td>59.66</td>
+      <td>62.18</td>
+      <td>58.82</td>
+      <td>57.98</td>
+      <td><span style="background-color: blue; color: white;">69.75</span></td>
+      <td>63.87</td>
+      <td>60.5</td>
+      <td>54.62</td>
+      <td>59.66</td>
+      <td>63.03</td>
+      <td>63.03</td>
+      <td>60.5</td>
+      <td><span style="background-color: red; color: white;">70.59</span></td>
+    </tr>
+    <tr>
+      <td>InsectEPGRegularTrain</td>
+      <td><span style="background-color: red; color: white;">100.0</span></td>
+      <td><span style="background-color: red; color: white;">100.0</span></td>
+      <td><span style="background-color: blue; color: white;">99.2</span></td>
+      <td>91.97</td>
+      <td>83.13</td>
+      <td>44.58</td>
+      <td>95.98</td>
+      <td>85.94</td>
+      <td><span style="background-color: red; color: white;">100.0</span></td>
+      <td><span style="background-color: red; color: white;">100.0</span></td>
+      <td>46.18</td>
+      <td><span style="background-color: red; color: white;">100.0</span></td>
+      <td><span style="background-color: red; color: white;">100.0</span></td>
+      <td>47.39</td>
+      <td>46.18</td>
+      <td>77.91</td>
+      <td>91.57</td>
+      <td>49.8</td>
+      <td><span style="background-color: red; color: white;">100.0</span></td>
+      <td>83.53</td>
+      <td><span style="background-color: red; color: white;">100.0</span></td>
+      <td>85.54</td>
+      <td><span style="background-color: red; color: white;">100.0</span></td>
+      <td><span style="background-color: red; color: white;">100.0</span></td>
+    </tr>
+    <tr>
+      <td>ItalyPowerDemand</td>
+      <td>57.05</td>
+      <td>68.71</td>
+      <td>52.77</td>
+      <td>53.26</td>
+      <td>65.79</td>
+      <td>62.49</td>
+      <td>55.88</td>
+      <td>49.85</td>
+      <td>61.61</td>
+      <td>63.17</td>
+      <td>70.36</td>
+      <td>72.98</td>
+      <td>74.73</td>
+      <td>73.66</td>
+      <td><span style="background-color: red; color: white;">76.97</span></td>
+      <td>74.44</td>
+      <td>71.62</td>
+      <td>71.14</td>
+      <td>76.68</td>
+      <td><span style="background-color: blue; color: white;">76.87</span></td>
+      <td>73.66</td>
+      <td>75.02</td>
+      <td>75.9</td>
+      <td>72.5</td>
+    </tr>
+    <tr>
+      <td>Lightning7</td>
+      <td>21.92</td>
+      <td>28.77</td>
+      <td>12.33</td>
+      <td>28.77</td>
+      <td>26.03</td>
+      <td>20.55</td>
+      <td>24.66</td>
+      <td>26.03</td>
+      <td>17.81</td>
+      <td>21.92</td>
+      <td>27.4</td>
+      <td><span style="background-color: blue; color: white;">32.88</span></td>
+      <td>27.4</td>
+      <td>26.03</td>
+      <td>28.77</td>
+      <td>26.03</td>
+      <td>30.14</td>
+      <td>27.4</td>
+      <td>28.77</td>
+      <td><span style="background-color: red; color: white;">39.73</span></td>
+      <td>28.77</td>
+      <td>27.4</td>
+      <td>26.03</td>
+      <td>31.51</td>
+    </tr>
+    <tr>
+      <td>MoteStrain</td>
+      <td>56.47</td>
+      <td>61.1</td>
+      <td>53.83</td>
+      <td>53.51</td>
+      <td>61.5</td>
+      <td>47.76</td>
+      <td>57.19</td>
+      <td>50.64</td>
+      <td>56.55</td>
+      <td>Error</td>
+      <td><span style="background-color: blue; color: white;">68.85</span></td>
+      <td>56.95</td>
+      <td>61.98</td>
+      <td>51.76</td>
+      <td>52.24</td>
+      <td>64.3</td>
+      <td>57.43</td>
+      <td>58.55</td>
+      <td>59.19</td>
+      <td>66.85</td>
+      <td>60.3</td>
+      <td>63.02</td>
+      <td>60.86</td>
+      <td><span style="background-color: red; color: white;">72.68</span></td>
+    </tr>
+    <tr>
+      <td>PowerCons</td>
+      <td>78.33</td>
+      <td>92.22</td>
+      <td>65.56</td>
+      <td>77.22</td>
+      <td>85.56</td>
+      <td>74.44</td>
+      <td>80.0</td>
+      <td>77.78</td>
+      <td>68.33</td>
+      <td>51.11</td>
+      <td>87.22</td>
+      <td>90.0</td>
+      <td>90.56</td>
+      <td>55.56</td>
+      <td>62.22</td>
+      <td>84.44</td>
+      <td>93.33</td>
+      <td>86.67</td>
+      <td><span style="background-color: blue; color: white;">94.44</span></td>
+      <td>92.78</td>
+      <td>93.89</td>
+      <td>92.78</td>
+      <td><span style="background-color: red; color: white;">95.0</span></td>
+      <td>92.78</td>
+    </tr>
+    <tr>
+      <td>SonyAIBORobotSurface2</td>
+      <td>63.27</td>
+      <td>67.68</td>
+      <td>48.06</td>
+      <td>61.91</td>
+      <td>69.78</td>
+      <td>69.36</td>
+      <td>64.43</td>
+      <td>61.7</td>
+      <td>63.27</td>
+      <td>68.84</td>
+      <td>74.71</td>
+      <td><span style="background-color: red; color: white;">78.49</span></td>
+      <td>73.56</td>
+      <td>75.55</td>
+      <td>76.18</td>
+      <td>75.24</td>
+      <td>74.4</td>
+      <td>74.82</td>
+      <td><span style="background-color: blue; color: white;">76.6</span></td>
+      <td>73.56</td>
+      <td>71.67</td>
+      <td>75.87</td>
+      <td>76.18</td>
+      <td>75.97</td>
+    </tr>
+    <tr>
+      <td>UWaveGestureLibraryAll</td>
+      <td>78.25</td>
+      <td>83.67</td>
+      <td>12.23</td>
+      <td>74.87</td>
+      <td>79.79</td>
+      <td>49.5</td>
+      <td>47.38</td>
+      <td>Error</td>
+      <td>12.67</td>
+      <td>26.52</td>
+      <td>83.45</td>
+      <td>78.5</td>
+      <td>81.6</td>
+      <td>16.42</td>
+      <td>37.02</td>
+      <td>84.45</td>
+      <td>85.23</td>
+      <td>84.95</td>
+      <td><span style="background-color: red; color: white;">87.05</span></td>
+      <td>85.65</td>
+      <td><span style="background-color: blue; color: white;">86.07</span></td>
+      <td>83.36</td>
+      <td>82.05</td>
+      <td>80.18</td>
+    </tr>
+  </tbody>
+</table>

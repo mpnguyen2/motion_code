@@ -1,10 +1,9 @@
 import argparse
+from collections import defaultdict
 import numpy as np
 import pandas as pd
-
 import warnings
 warnings.filterwarnings("ignore")
-
 from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
 from sktime.classification.dictionary_based import IndividualBOSS, BOSSEnsemble
 from sktime.classification.interval_based import RandomIntervalSpectralEnsemble, TimeSeriesForestClassifier
@@ -17,36 +16,28 @@ from sktime.classification.shapelet_based import ShapeletTransformClassifier
 from sktime.classification.sklearn import RotationForest
 from sktime.classification.hybrid import HIVECOTEV2
 from sktime.classification.deep_learning import LSTMFCNClassifier
-
 from sktime.forecasting.naive import NaiveForecaster
 from sktime.forecasting.arima import ARIMA
 from sktime.forecasting.exp_smoothing import ExponentialSmoothing
 from sktime.forecasting.structural import UnobservedComponents
 from sktime.forecasting.tbats import TBATS
-
-from data_processing import load_data, process_data, split_train_test_forecasting
-from utils import RMSE
+from data_processing import get_train_test_data_forecast, get_train_test_data_classify
 from motion_code import MotionCode, motion_code_classify, motion_code_forecast
+from utils import RMSE
 
-def run_classify(clf, clf_name, X_train, y_train, X_test, y_test, name=""):
-    if clf_name == 'Motion code':
-        return motion_code_classify(clf, name, X_train, y_train, X_test, y_test)
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
-    if type(y_pred) is tuple:
-        y_pred, _ = y_pred
-    return np.sum(y_pred == y_test)/y_pred.shape[0]
 
-def run_forecast(forecaster, forecaster_name, name, percentage):
-    if forecaster_name == 'Motion code':
-        return motion_code_forecast(forecaster, name, percentage)
-    
-    # Get train/test data: collection instead of a single time series
-    Y, labels = load_data(name, split='train')
-    Y, labels = process_data(Y, labels)
-    if Y.shape[0] == 0:
+################################ Helper functions ################################
+def run_classify_benchmark(clf, Y_train, labels_train, Y_test, labels_test, name=""):
+    clf.fit(Y_train, labels_train)
+    labels_pred = clf.predict(Y_test)
+    if type(labels_pred) is tuple:
+        labels_pred, _ = labels_pred
+    return np.sum(labels_pred == labels_test)/labels_pred.shape[0]
+
+def run_forecast_benchmark(forecaster, Y_train, Y_test, labels, test_num_steps):
+    num_samples = labels.shape[0]
+    if not num_samples:
         return -1
-    Y_train, Y_test, _, test_num_steps = split_train_test_forecasting(Y, percentage)
     
     # specifying forecasting horizon
     fh = np.arange(1, test_num_steps + 1) 
@@ -54,64 +45,90 @@ def run_forecast(forecaster, forecaster_name, name, percentage):
     # Fitting and store errors.
     num_motion = np.unique(labels).shape[0]
     all_errors = [[] for _ in range(num_motion)]
-    num_samples = Y.shape[0]
     for i in range(num_samples):
         forecaster.fit(pd.Series(Y_train[i]))
         y_pred = forecaster.predict(fh).to_numpy()
         all_errors[labels[i]].append(RMSE(y_pred, Y_test[i]))
 
-    # Return mean error for each type of motion.
+    # Return mean error.
     errs = np.zeros(num_motion)
     for i in range(num_motion):
-        errs[i] = np.mean(np.array(all_errors[i]))
-    
+        errs[i] = np.mean(np.array(all_errors[i]))    
     return errs
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='CLI arguments')
-    parser.add_argument('--forecast', type=bool, default=False, help='Type of benchmarks: either classify or forecast')
-    parser.add_argument('--load_existing_data', type=bool, default=False, help='Load saved noisy data')
-    args = parser.parse_args()
+def get_data_dict(datasets, forecast, load_existing_data):
+    data_dict = {}
+    for name in datasets:
+        if forecast:
+            benchmark_data, motion_code_data = get_train_test_data_forecast(name)
+        else:
+            benchmark_data, motion_code_data = (
+                get_train_test_data_classify(name, load_existing_data)
+            )
+        data_dict[name] = benchmark_data
+        data_dict[name + '_motion_code'] = motion_code_data
+    return data_dict
 
-    datasets = ['Chinatown', 'ECGFiveDays', 'FreezerSmallTrain', 'GunPointOldVersusYoung', 'HouseTwenty', 'InsectEPGRegularTrain', 
-            'ItalyPowerDemand', 'Lightning7', 'MoteStrain', 'PowerCons', 'SonyAIBORobotSurface2', 'Sound', 'Synthetic', 
-            'UWaveGestureLibraryAll']
 
-    if args.forecast:
-        # Work with original versions of data.
+################################ Main benchmarking function ################################
+def main(forecast, dataset_type,
+         load_existing_data,
+         load_existing_model,
+         output_path):
+    
+    # Load and process data
+    datasets = []
+    if dataset_type == 'basics':
+        datasets = ['ECGFiveDays', 'FreezerSmallTrain', 'HouseTwenty',
+                    'InsectEPGRegularTrain', 'ItalyPowerDemand', 'Lightning7',
+                    'MoteStrain', 'PowerCons', 'SonyAIBORobotSurface2', 'UWaveGestureLibraryAll']
+    if dataset_type == 'pronunciation':
+        datasets = ['Pronunciation Audio']
+    if dataset_type == 'parkinson_1':
+        datasets = ['PD setting 1']
+    if dataset_type == 'parkinson_2':
+        datasets = ['PD setting 2']
+    data_dict = get_data_dict(datasets, forecast, load_existing_data)
+
+    if forecast:
+        # Focus on classification for Parkinson's disease sensor data
+        if dataset_type == 'parkinson_1' or dataset_type == 'parkinson_2':
+            return 0
+
+        # Initialize forecasters
         all_forecasters = [(ExponentialSmoothing(trend="add", seasonal="additive", sp=12), 'Exponential Smoothing'),
                             (ARIMA(order=(1, 1, 0), seasonal_order=(0, 1, 0, 12), suppress_warnings=True), 'ARIMA'),
                             (UnobservedComponents(level="local linear trend", freq_seasonal=[{"period": 12, "harmonics": 10}]), 'State-space'),
-                            (NaiveForecaster(strategy="last", sp=12), 'naive'),
+                            (NaiveForecaster(strategy="last", sp=12), 'Last seen'),
                             (TBATS(use_box_cox=False, use_trend=False, 
                                 use_damped_trend=False, sp=12, use_arma_errors=False, n_jobs=1), "TBATS"),
-                            (MotionCode(), 'Motion code')]
-        
+                            (MotionCode(), 'Motion Code')]
+        # Run forecasters
+        result = defaultdict(list)
         for forecaster, forecaster_name in all_forecasters:
             print(forecaster_name)
             for name in datasets:
                 try:
-                    print(name + ': ' + str(run_forecast(forecaster, forecaster_name, name, percentage=.8)))
+                    if forecaster_name != 'Motion Code':
+                        Y_train, Y_test, labels, test_num_steps = data_dict[name]
+                        err = run_forecast_benchmark(forecaster, Y_train, Y_test,
+                                                     labels, test_num_steps)
+                    else:
+                        X_train, Y_train, labels, test_time_horizon, Y_test = (
+                            data_dict[name + '_motion_code']
+                        )
+                        err = motion_code_forecast(forecaster, name, X_train, Y_train, labels,
+                                                   test_time_horizon, Y_test, load_existing_model)
+                    print(name + ': ' + str(err))
+                    result[forecaster_name].append(err)
                 except:
                     print(name + ': -1')
+                    result[forecaster_name].append(-1)
             print('\n')
+        pd.DataFrame(result, index=datasets).to_csv(output_path)
+
     else:
-        # Load noisy versions of data.
-        noisy_data = {}
-        for name in datasets:
-            data_path = 'data/noisy/' + name
-            if args.load_existing_data:
-                data = np.load(data_path + '.npy', allow_pickle=True).item()
-                X_train, y_train = data.get('X_train'), data.get('y_train')
-                X_test, y_test = data.get('X_test'), data.get('y_test')
-            else:
-                X_train, y_train = load_data(name, split='train', add_noise=True)
-                X_test, y_test = load_data(name, split='test', add_noise=True)
-                np.save(data_path, {'X_train': X_train, 'y_train': y_train, 'X_test': X_test, 'y_test': y_test})
-            
-            noisy_data[name] = (X_train, y_train, X_test, y_test)
-        
-        # All classifers for bechmarks
+        # Initialize classifier
         mean_gaussian_tskernel = AggrDist(RBF()) 
         all_clfs = [(KNeighborsTimeSeriesClassifier(distance="dtw"), "DTW"),
                     (TimeSeriesForestClassifier(n_estimators=5), "TSF"),
@@ -125,23 +142,61 @@ if __name__ == '__main__':
                     (TimeSeriesSVC(kernel=mean_gaussian_tskernel), "SVC"),
                     (LSTMFCNClassifier(n_epochs=200, verbose=0), "LSTM-FCN"),
                     (RocketClassifier(num_kernels=500), "Rocket"),
-                    (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2"),
-                    (MotionCode(), "Motion code")]
+                    (HIVECOTEV2(time_limit_in_minutes=0.2), "Hive-Cote 2")
+        ]
+        if dataset_type == 'basics' or dataset_type == 'pronunciation':
+            all_clfs.append((MotionCode(m=10, Q=1, latent_dim=2), 'Motion Code'))
+        if dataset_type == 'parkinson_1':
+            all_clfs.append((MotionCode(m=6, Q=2, latent_dim=2), 'Motion Code'))
+        if dataset_type == 'parkinson_2':
+            all_clfs.append((MotionCode(m=12, Q=2, latent_dim=2), 'Motion Code'))
 
         # Run classifers.
-        result = {}
+        result = defaultdict(list)
         for clf, clf_name in all_clfs:
             print(clf_name)
             result[clf_name] = []
             for name in datasets:
                 try:
-                    X_train, y_train, X_test, y_test = noisy_data[name]
-                    acc = run_classify(clf, clf_name, X_train, y_train, X_test, y_test, name)
+                    if clf_name != 'Motion Code':
+                        Y_train, labels_train, Y_test, labels_test = data_dict[name]
+                        acc = run_classify_benchmark(clf, Y_train, labels_train, Y_test, labels_test, name)
+                    else:
+                        X_train, Y_train, labels_train, X_test, Y_test, labels_test = (
+                              data_dict[name + '_motion_code']
+                        )
+                        acc = motion_code_classify(clf, name,
+                                                   X_train, Y_train, labels_train,
+                                                   X_test, Y_test, labels_test,
+                                                   load_existing_model)
                     print(name + ': ' + str(acc))
                     result[clf_name].append(acc)
                 except:
                     print(name + ': -1')
                     result[clf_name].append(-1)
             print('\n')
+        pd.DataFrame(result, index=datasets).to_csv(output_path)
 
-        pd.DataFrame(result, index=datasets).to_csv('out/classify_accuracy.csv')
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='CLI arguments')
+    parser.add_argument('--forecast', type=bool, default=False, help='Type of benchmarks: either classify or forecast')
+    parser.add_argument('--dataset_type', type=str, default='basics',
+                        help='basics/pronunciation/parkinson_1/parkinson_2')
+    parser.add_argument('--load_existing_data', type=bool, default=False, help='Load existing data')
+    parser.add_argument('--load_existing_model', type=bool, default=False, help='Load existing Motion Code model')
+    parser.add_argument('--output_path', type=str, default='out', help='Output path')
+    args = parser.parse_args()
+    forecast = args.forecast
+    dataset_type = args.dataset_type
+    load_existing_data = args.load_existing_data
+    load_existing_model = args.load_existing_model
+    output_path = args.output_path
+    task = 'forecast' if forecast else 'classify'
+    print('Command line parameters')
+    print(f'Perform {task}')
+    print(f'Dataset: {dataset_type}')
+    print(f'Output path: {output_path}')
+    print('------------------------------------------------------------------\n')
+
+    main(forecast, dataset_type, load_existing_data, load_existing_model, output_path)

@@ -48,10 +48,14 @@ coverage.xml
 *.exe
 
 # Data files
-data/noisy/*.npy
-data/sound/*
+data/*
+TSLibrary/dataset/*
+TSLibrary/results/*
+TSLibrary/test_results/*
 
 # Out file
+out/*
+TSLibrary/checkpoints/*
 
 # Model files
 
