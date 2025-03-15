@@ -69,6 +69,7 @@ To format all classification benchmarks in a highlighted manner, run:
 ```sh
 collect_all_benchmarks.ipynb
 ```
+The output `benchmark_results.html` file contains all classification benchmark results.
 
 ### III-D. Hyperparameter Details
 #### Classification:
