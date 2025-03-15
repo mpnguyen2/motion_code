@@ -22,10 +22,8 @@ DATASETS=(
   "PDSetting1"
   "PDSetting2"
   "PronunciationAudio"
-  "Chinatown"
   "ECGFiveDays"
   "FreezerSmallTrain"
-  "GunPointOldVersusYoung"
   "HouseTwenty"
   "InsectEPGRegularTrain"
   "ItalyPowerDemand"
@@ -37,8 +35,19 @@ DATASETS=(
 )
 
 # List of models to train
-# MODELS=("Informer" "Autoformer" "LightTS" "DLinear" "iTransformer" "TimesNet" "Crossformer" "MICN" "Mamba" "PatchTST" "FEDformer" "ETSformer")
-MODELS=("Pyraformer")
+MODELS=(
+  "Informer"
+  "Autoformer"
+  "FEDformer"
+  "ETSformer"
+  "LightTS"
+  "PatchTST"
+  "Crossformer"
+  "DLinear"
+  "TimesNet"
+  "iTransformer"
+  "Mamba"
+)
 
 # Model-specific parameters
 declare -A DMODEL_MAP=( ["iTransformer"]=2048 ["TimesNet"]=64)
