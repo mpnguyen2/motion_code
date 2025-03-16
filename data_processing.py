@@ -170,16 +170,56 @@ def get_train_test_data_classify(name, load_existing_data, add_noise=True):
         motion_code_data = (X_train, Y_train, labels_train, X_test, Y_test, labels_test)
         
     if name == 'PD setting 1' or name == 'PD setting 2':
-        X_train, Y_train, labels_train, X_test, Y_test, labels_test = (
-            get_parkinson_train_test_data(name)
-        )
-        motion_code_data = (X_train, Y_train, labels_train, X_test, Y_test, labels_test)
-    
-        Y_train_bm, labels_train_bm, Y_test_bm, labels_test_bm = (
-            interp_parkison_data_for_benchmarking_algorithms(X_train, Y_train, labels_train,
-                                                                X_test, Y_test, labels_test)
-        )
-        benchmark_data = (Y_train_bm, labels_train_bm, Y_test_bm, labels_test_bm)
+        data_path = f'data/parkinson/{name}.npz'
+        if load_existing_data:
+            # Load file containing both motion code and benchmark data
+            data = np.load(data_path, allow_pickle=True)
+
+            # Get motion code data
+            X_train = list(data['X_train'])
+            Y_train = list(data['Y_train'])
+            labels_train = list(data['labels_train'])
+            X_test = list(data['X_test'])
+            Y_test = list(data['Y_test'])
+            labels_test = list(data['labels_test'])
+            motion_code_data = (X_train, Y_train, labels_train, X_test, Y_test, labels_test)
+
+            # Get benchmark data
+            Y_train_bm = data['Y_train_bm']
+            labels_train_bm = data['labels_train_bm']
+            Y_test_bm = data['Y_test_bm']
+            labels_test_bm = data['labels_test_bm']
+            benchmark_data = (Y_train_bm, labels_train_bm, Y_test_bm, labels_test_bm)
+            
+        else:
+            # Get motion code data directly from raw data
+            X_train, Y_train, labels_train, X_test, Y_test, labels_test = (
+                get_parkinson_train_test_data(name)
+            )
+            motion_code_data = (X_train, Y_train, labels_train, X_test, Y_test, labels_test)
+        
+            # Interpolate data for benchmarking algorithms
+            Y_train_bm, labels_train_bm, Y_test_bm, labels_test_bm = (
+                interp_parkison_data_for_benchmarking_algorithms(X_train, Y_train, labels_train,
+                                                                    X_test, Y_test, labels_test)
+            )
+            benchmark_data = (Y_train_bm, labels_train_bm, Y_test_bm, labels_test_bm)
+
+            # Save data
+            np.savez_compressed(
+                data_path,
+                X_train=np.array(X_train, dtype=object),
+                Y_train=np.array(Y_train, dtype=object),
+                labels_train=np.array(labels_train, dtype=np.int32),
+                X_test=np.array(X_test, dtype=object),
+                Y_test=np.array(Y_test, dtype=object),
+                labels_test=np.array(labels_test, dtype=np.int32),
+                Y_train_bm=Y_train_bm,
+                labels_train_bm=labels_train_bm,
+                Y_test_bm=Y_test_bm,
+                labels_test_bm=labels_test_bm
+            )
+            print(f'Saved data {name} to {data_path}')
 
     return benchmark_data, motion_code_data
 

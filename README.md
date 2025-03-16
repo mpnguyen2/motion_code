@@ -2,8 +2,33 @@
 
 ## I. Introduction
 In this work, we employ variational inference and stochastic process modeling to develop a framework called
-Motion Code. Please look at the tutorial notebook `tutorial_notebook.ipynb` to learn how to use Motion Code.
+Motion Code.
 
+### 1. Download datasets and trained models
+The trained models for Motion Code is available in the folder `saved_models` due to their small sizes. However, for reproducibility, you need to download the datasets as we cannot store them directly in the repos due to limited storage. In addition to data, the trained attention-based benchmarking models are available
+through downloading. To download the datasets and attention-based benchmarking models, follow 3 steps:
+1. Go to the download link: https://www.swisstransfer.com/d/ac141247-ed25-4798-8666-24fda4310d97 and download
+the zip file. 
+   * <b>Password (Red color)</b>: <span style="color:red">assets_for_motion_code</span>.
+   
+   Note that it can take up to 10 minutes to download the file. Additionally, the link is expired every month,
+but this repos is continuously updated and you can always check this README.md for updated link(s)
+
+2. Unzip the downloaded file. Inside the file is `motion_code` folder, which contains 2 sub-folders `data` and `TSLibrary`:
+   * The `data` folder contains experiment data (basic noisy datasets, audio and parkinson data). Copy
+   this folder to the repo root (if `data` folder already exists in the repo, then copy its content over).
+   * `TSLibrary` contain 3 folders, and you need to add these 3 folders to the `TSLibrary` folder of the repo.
+   These 3 folders include:
+      * `dataset`: contains .ts version of `data` folder
+      * `checkpoints`: contains trained attention-based models
+      * `results`: contains classification results of attention-based models
+      
+3. Please make sure that you have `data`, `dataset`, `checkpoints`, and `results` downloaded and stored in
+the correct location as instructed above. Once this is done, you're ready to run tutorial notebooks and other
+notebooks in the repo.
+
+### 2. Basic usage
+Please look at the tutorial notebook `tutorial_notebook.ipynb` to learn how to use Motion Code.
 To initialize the model, use the code:
 ```python
 from motion_code import MotionCode
@@ -25,17 +50,42 @@ Motion Code performs both classification and forecasting.
   mean, covar = model.forecast_predict(test_time_horizon, label=0)
   ```
 
-All package prerequisites are given in `requirements.txt`.
+All package prerequisites are given in `requirements.txt`. You can install by 
+```sh
+pip install -r requirements.txt
+```
 
 ## II. Interpretable Features
 To learn how to generate interpretable features, please see `Pronunciation_Audio.ipynb` for further tutorial.
 This notebook gets the audio data, trains a Motion Code model on the data, and plots the interpretable features
 obtained from Motion Code's most informative timestamps.
 
+Here are some examples of <b>the most informative timestamps</b> features extracted from Motion Code
+that captures different underlying dynamics:
+
+Humidity sensor (MoteStrain)                 |  Temperature sensor (MoteStrain)
+:-------------------------:|:-----------------------------:
+![](out/multiple/MoteStrain0.png)  |  ![](out/multiple/MoteStrain1.png)
+
+Winter power demand (ItalyPowerDemand)              |  Spring power demand (ItalyPowerDemand)
+:-------------------------:|:-------------------------:
+![](out/multiple/ItalyPowerDemand0.png)  |  ![](out/multiple/ItalyPowerDemand1.png)
+
+Word "absortivity" (Pronunciation audio)              |  Word "anything" (Pronunciation audio) 
+:-------------------------:|:-------------------------:
+![](out/multiple/test_audio0.png)  |  ![](out/multiple/test_audio1.png)
+
+<br></br>
+
 ## III. Benchmarking
 The main benchmark file is `benchmarks.py`.
+For benchmarking models, we consider two types: 
+* Non attention-based and our model
+* Attention-based model such as Informer or Autoformer
 
-### III-A. Non Attention-Based Method
+You can get all classification benchmarks in a highlighted manner by running the notebook `collect_all_benchmarks.ipynb`. Once the run is completed, the output `out/all_classification_benchmark_results.html` will contain all classification benchmark results. To further doing more customize steps, you can follow additional instructions below:
+
+### 2. Non Attention-Based Method
 #### Running Benchmarks:
 1. Classification benchmarking on basic dataset with noise:
    ```sh
@@ -56,22 +106,15 @@ The main benchmark file is `benchmarks.py`.
    python benchmarks.py --dataset_type="parkinson_2" --load_existing_model=True --output_path="out/classify_parkinson_2.csv"
    ```
 
-### III-B. Attention-Based Method
+### 3. Attention-Based Method
 We will use the Time Series Library ([TSLibrary](https://github.com/thuml/Time-Series-Library/)), stored in the `TSLibrary` folder.
-To rerun all training, execute the bash script:
+To rerun all training, execute the script:
 ```sh
-TSLibrary/attention_benchmark.sh
+bash TSLibrary/attention_benchmark.sh
 ```
-For efficiency, it is recommended to use existing models and run `collect_all_benchmarks.ipynb` to retrieve benchmark results.
+For efficiency, it is recommended to use existing (already) trained models and run `collect_all_benchmarks.ipynb` to get the benchmark results.
 
-### III-C. Collecting Benchmarks
-To format all classification benchmarks in a highlighted manner, run:
-```sh
-collect_all_benchmarks.ipynb
-```
-The output `benchmark_results.html` file contains all classification benchmark results.
-
-### III-D. Hyperparameter Details
+### 4. Hyperparameter Details
 #### Classification:
 - **DTW:** `distance="dtw"`
 - **TSF:** `n_estimators=100`
@@ -92,14 +135,14 @@ The output `benchmark_results.html` file contains all classification benchmark r
 ## IV. Visualization
 The main visualization file is `visualize.py`.
 
-### IV-A Motion Code Interpretability
+### 1. Motion Code Interpretability
 To extract interpretable features from Motion Code, run:
 ```sh
 python visualize.py --type="classify_motion_code" --dataset="PD setting 2"
 ```
 Change the dataset argument as needed (e.g., `Pronunciation Audio`, `PD setting 1`, `PD setting 2`).
 
-### IV-B Forecasting Visualization
+### 2. Forecasting Visualization
 1. To visualize forecasting with mean and variance:
    ```sh
    python visualize.py --type="forecast_mean_var" --dataset="ItalyPowerDemand"
@@ -110,15 +153,17 @@ Change the dataset argument as needed (e.g., `Pronunciation Audio`, `PD setting 
    ```
 
 ## V. File Structure
-1. **Tutorial Notebooks:** `tutorial_notebook.ipynb`, `Pronunciation_Audio.ipynb`
-2. **Data Folder:** Contains three subfolders:
+1. **Tutorial notebooks:** `tutorial_notebook.ipynb`, `Pronunciation_Audio.ipynb`
+2. **`data` folder:**  Contains three subfolders:
    - `basics`: Basic datasets with noise.
-   - `audio`: Pronunciation Audio dataset (not included due to size restrictions).
-   - `parkinson`: Parkinson sensor dataset (not included due to size restrictions).
-3. **Saved Models Folder:** Pretrained Motion Code models for experiments and benchmarking.
-4. **Python Files:**
-   - **Data Processing:** `data_processing.py`, `parkinson_data_processing.py`, `utils.py`, `MotionCodeTSC_create.ipynb` (create .ts data for Time Series Library)
-   - **Motion Code Model:** `motion_code.py`, `motion_code_utils.py`, `sparse_gp.py`
+   - `audio`: Pronunciation Audio dataset.
+   - `parkinson`: Parkinson sensor dataset.
+3. **`saved_models` folder:** Contains (already) trained Motion Code models for inference and benchmarking.
+4. **Python files:**
+   - **Data processing:** `data_processing.py`, `parkinson_data_processing.py`, `utils.py`
+   - **Motion Code model:** `motion_code.py`, `motion_code_utils.py`, `sparse_gp.py`
    - **Benchmarking:** `benchmark.py` (Non-attention), `collect_all_benchmarks.ipynb` (All)
    - **Visualization:** `visualize.py`
-5. **Time Series Library:** `TSLibrary` folder, containing `attention_benchmark.sh` for rerunning model training.
+   - **Other notebooks**: Under notebooks folder are `MotionCodeTSC_create.ipynb` to convert .npy to .ts data
+   and `Pronunciation_Audio.ipynb` for extracting intepretable feature from varying-length audio data
+5. **Time Series Library `TSLibrary` folder :**  contains `attention_benchmark.sh` for re-running all attention-based benchmarking models training.

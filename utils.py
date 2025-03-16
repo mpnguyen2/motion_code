@@ -120,7 +120,7 @@ def plot_motion_codes(X_train, Y_train, test_time_horizon, labels, label_names,
             Y_test_all = [np.interp(X_m_ks[k], x1, y1) for x1, y1 in zip(X1, Y1)]
             Y_test = np.mean(np.array(Y_test_all), axis=0)
         else:
-            Y_test = np.interp(X_m_ks[k], X1[0], np.mean(Y1, axis=0))
+            Y_test = np.interp(X_m_ks[k], X1, np.mean(Y1, axis=0))
         plt.scatter(X_m_ks[k], Y_test, color=color, s=20, zorder=2,
                     label='Mean values at the most\ninformative timestamps')
         # plt.plot(X_m_ks[k], Y_test, color=color, linestyle='dashed',

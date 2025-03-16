@@ -49,13 +49,13 @@ coverage.xml
 
 # Data files
 data/*
+!.gitkeep
 TSLibrary/dataset/*
-TSLibrary/results/*
-TSLibrary/test_results/*
 
 # Out file
-out/*
 TSLibrary/checkpoints/*
+TSLibrary/results/*
+TSLibrary/test_results/*
 
 # Model files
 
@@ -64,3 +64,6 @@ logs/*
 
 # Notebook checkpoints
 .ipynb_checkpoints/*
+
+# VS Code
+.vscode/*
