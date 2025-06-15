@@ -67,3 +67,12 @@ logs/*
 
 # VS Code
 .vscode/*
+
+# Ablation results
+ablation_study.ipynb
+out/ablation/plot/*
+!.gitkeep
+out/ablation/cluster/*
+!.gitkeep
+out/ablation/exp/*
+out/ablation/log.txt

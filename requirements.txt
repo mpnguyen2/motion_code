@@ -1,3 +1,5 @@
+tensorflow
+numba
 jax
 matplotlib
 numpy

@@ -7,7 +7,7 @@ Motion Code.
 ### 1. Download datasets and trained models
 The trained models for Motion Code is available in the folder `saved_models` due to their small sizes. However, for reproducibility, you need to download the datasets as we cannot store them directly in the repos due to limited storage. In addition to data, the trained attention-based benchmarking models are available
 through downloading. To download the datasets and attention-based benchmarking models, follow 3 steps:
-1. Go to the download link: https://www.swisstransfer.com/d/76d8bd4d-d56a-4098-92b7-077d226a4264 and download
+1. Go to the download link: https://www.swisstransfer.com/d/0acddb9e-1103-4dae-a898-52dbad433f7c and download
 the zip file. 
    * <b>Password</b>: <b>assets_for_motion_code</b>
    
@@ -153,17 +153,45 @@ Change the dataset argument as needed (e.g., `Pronunciation Audio`, `PD setting 
    ```
 
 ## V. File Structure
-1. **Tutorial notebooks:** `tutorial_notebook.ipynb`, `Pronunciation_Audio.ipynb`
-2. **`data` folder:**  Contains three subfolders:
-   - `basics`: Basic datasets with noise.
-   - `audio`: Pronunciation Audio dataset.
-   - `parkinson`: Parkinson sensor dataset.
-3. **`saved_models` folder:** Contains (already) trained Motion Code models for inference and benchmarking.
-4. **Python files:**
-   - **Data processing:** `data_processing.py`, `parkinson_data_processing.py`, `utils.py`
-   - **Motion Code model:** `motion_code.py`, `motion_code_utils.py`, `sparse_gp.py`
-   - **Benchmarking:** `benchmark.py` (Non-attention), `collect_all_benchmarks.ipynb` (All)
-   - **Visualization:** `visualize.py`
-   - **Other notebooks**: Under notebooks folder are `MotionCodeTSC_create.ipynb` to convert .npy to .ts data
-   and `Pronunciation_Audio.ipynb` for extracting intepretable feature from varying-length audio data
-5. **Time Series Library `TSLibrary` folder :**  contains `attention_benchmark.sh` for re-running all attention-based benchmarking models training.
+```text
+.
+├── data/                         # Contains datasets for training and evaluation
+│   ├── basics/                   # Synthetic datasets with noise
+│   ├── audio/                    # Pronunciation audio data
+│   └── parkinson/                # Parkinson sensor data
+│
+├── saved_models/                 # Pretrained Motion Code models
+│
+├── out/                        # All experiment outputs
+│   ├── multiple/               # Interpretability visualizations
+│   ├── ablation/               # Ablation study results
+│   │   └── ablation_accuracy_results.csv
+│   ├── classify_*.csv          # Classification benchmark results
+│
+├── motion_code.py                # Core Motion Code model
+├── motion_code_utils.py          # Supporting functions for model logic
+├── sparse_gp.py                  # Sparse Gaussian Process backend
+│
+├── ablation.py                   # Main script for running ablation experiments
+├── ablation_utils.py             # Helper functions for ablation
+│
+├── data_processing.py            # General dataset preprocessing
+├── parkinson_data_processing.py  # Parkinson-specific preprocessing
+├── utils.py                      # Shared utility functions
+│
+├── benchmarks.py                 # Non-attention benchmark execution
+├── collect_all_benchmarks.ipynb  # Summary of all benchmark results
+│
+├── visualize.py                  # Generates interpretability/forecast visualizations
+│
+├── tutorial_notebook.ipynb       # Core tutorial notebook (placed at top level)
+│
+├── notebooks/                    # Additional notebooks
+│   ├── Pronunciation_Audio.ipynb     # Interpretable features from audio sequences
+│   └── MotionCodeTSC_create.ipynb    # Converts `.npy` files into `.ts` format
+│
+└── TSLibrary/                   # Time-Series Library for attention-based baselines
+    ├── attention_benchmark.sh   # Run all attention-based benchmarks
+    ├── dataset/                 # Benchmark-ready datasets (.ts format)
+    ├── checkpoints/             # Pretrained attention model checkpoints
+    └── results/                 # Outputs from attention-based models

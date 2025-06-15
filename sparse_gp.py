@@ -114,10 +114,11 @@ def elbo_fn_single(X, Y, sigma_y, dims):
     """
 
     def elbo(params):
-        # X_m is inducing pt (m, ), Sigma, W are kernel parameters of shape Q
-        X_m, Sigma, W = unpack_params_single(params, dims)
+        # X_m is raw-info pt (m, ), Sigma, W are kernel parameters of shape Q
+        X_m_raw, Sigma, W = unpack_params_single(params, dims)
         Sigma = softplus(Sigma)
         W = softplus(W)
+        X_m = softmax(X_m_raw)
         K_mm = spectral_kernel(X_m, X_m, Sigma, W) + jitter(X_m.shape[0])
         K_mn = spectral_kernel(X_m, X, Sigma, W)
         trace_avg_all_comps = jnp.sum(W**2)
