@@ -7,7 +7,7 @@ Motion Code.
 ### 1. Download datasets and trained models
 The trained models for Motion Code is available in the folder `saved_models` due to their small sizes. However, for reproducibility, you need to download the datasets as we cannot store them directly in the repos due to limited storage. In addition to data, the trained attention-based benchmarking models are available
 through downloading. To download the datasets and attention-based benchmarking models, follow 3 steps:
-1. Go to the download link: https://www.swisstransfer.com/d/0acddb9e-1103-4dae-a898-52dbad433f7c and download
+1. Go to the download link: https://www.swisstransfer.com/d/9e481900-bcbb-4ebe-be7d-691f80837e0f and download
 the zip file. 
    * <b>Password</b>: <b>assets_for_motion_code</b>
    
